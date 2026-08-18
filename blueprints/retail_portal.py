@@ -44,11 +44,11 @@ def connect_broker():
     if not account_name or not client_code or not api_key or not api_secret:
         return jsonify({"status": "error", "message": "account_name, client_code, api_key, and api_secret are required"}), 400
 
-    sizing_mode = data.get("sizing_mode", "MULTIPLIER")
-    multiplier = float(data.get("multiplier", 1.0))
-    fixed_qty = int(data.get("fixed_qty", 0))
-    max_lot_cap = int(data.get("max_lot_cap", 5))  # Default conservative 5 lots for retail
-    max_daily_loss = float(data.get("max_daily_loss", 2000.0))
+    sizing_mode = str(data.get("sizing_mode", "MULTIPLIER")).strip().upper()
+    multiplier = max(0.01, float(data.get("multiplier", 1.0) or 1.0))
+    fixed_qty = max(0, int(data.get("fixed_qty", 0) or 0))
+    max_lot_cap = max(1, int(data.get("max_lot_cap", 5) or 5))  # Default conservative 5 lots for retail
+    max_daily_loss = max(0.0, float(data.get("max_daily_loss", 2000.0) or 2000.0))
 
     # Check if account exists
     db = Session()
@@ -120,9 +120,9 @@ def subscribe_strategy():
     data = request.get_json(force=True, silent=True) or {}
     account_id = data.get("account_id")
     strategy_id = data.get("strategy_id")
-    multiplier = float(data.get("multiplier", 1.0))
-    fixed_qty = int(data.get("fixed_qty", 0))
-    max_daily_loss = float(data.get("max_daily_loss", 2000.0))
+    multiplier = max(0.01, float(data.get("multiplier", 1.0) or 1.0))
+    fixed_qty = max(0, int(data.get("fixed_qty", 0) or 0))
+    max_daily_loss = max(0.0, float(data.get("max_daily_loss", 2000.0) or 2000.0))
 
     if not account_id or not strategy_id:
         return jsonify({"status": "error", "message": "account_id and strategy_id are required"}), 400

@@ -35,8 +35,10 @@ def calculate_supertrend(high, low, close, period=7, multiplier=3):
         df["tr3"] = (df["low"] - df["prev_close"]).abs()
         df["tr"] = df[["tr1", "tr2", "tr3"]].max(axis=1)
 
-        # Calculate ATR
-        df["atr"] = df["tr"].rolling(window=period).mean()
+        # Calculate ATR with min_periods=1 for seamless warmup
+        period = max(1, int(period))
+        multiplier = max(0.1, float(multiplier))
+        df["atr"] = df["tr"].rolling(window=period, min_periods=1).mean()
 
         # Basic Upper and Lower Bands
         df["basic_upper"] = (df["high"] + df["low"]) / 2 + (multiplier * df["atr"])

@@ -99,9 +99,9 @@ class MarginCalculator:
         Calculate dynamically sized lots for an account based on risk profile and live funds.
         """
         sizing_mode = account.get("sizing_mode", "MULTIPLIER")
-        max_lot_cap = int(account.get("max_lot_cap", 50) or 50)
-        fixed_qty = int(account.get("fixed_qty", 0) or 0)
-        multiplier = float(account.get("multiplier", 1.0) or 1.0)
+        max_lot_cap = max(1, int(account.get("max_lot_cap", 50) or 50))
+        fixed_qty = max(0, int(account.get("fixed_qty", 0) or 0))
+        multiplier = max(0.01, float(account.get("multiplier", 1.0) or 1.0))
 
         if sizing_mode == "FIXED_LOTS" or fixed_qty > 0:
             lots = max(1, fixed_qty // lot_size) if lot_size > 1 else max(1, fixed_qty)
@@ -123,14 +123,14 @@ class MarginCalculator:
             net_margin = float(account.get("last_funds", 0.0) or 0.0)
             available_cash = net_margin
 
-        capital = available_cash if margin_source == "cash" else net_margin
+        capital = max(0.0, available_cash if margin_source == "cash" else net_margin)
         if capital <= 0:
             logger.warning(f"[Margin Calculator] Account {account.get('account_name')} has <= 0 capital. Using fallback 1 lot.")
             return 1, {"mode": "DYNAMIC_FALLBACK", "reason": "No capital recorded", "lots": 1}
 
         effective_margin = capital * margin_pct
         is_option = ("CE" in symbol.upper() or "PE" in symbol.upper())
-        margin_per_lot = self.get_margin_requirement_per_lot(symbol, action=action, is_option=is_option)
+        margin_per_lot = max(1.0, float(self.get_margin_requirement_per_lot(symbol, action=action, is_option=is_option) or 1.0))
 
         raw_lots = effective_margin / margin_per_lot
         calculated_lots = max(1, int(raw_lots))
