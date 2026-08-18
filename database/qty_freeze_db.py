@@ -175,10 +175,33 @@ def get_freeze_qty(symbol: str, exchange: str) -> int:
     if not _cache_loaded:
         load_freeze_qty_cache()
 
-    # Look up the configured entry for this exchange+symbol; default to 1 if none.
+    # Look up the configured entry for this exchange+symbol
     cache_key = f"{exchange}:{symbol}"
     if cache_key in _freeze_qty_cache:
         return _freeze_qty_cache[cache_key]
+
+    # Check common exchange alias mappings (e.g. NSEFO <-> NFO, BSEFO <-> BFO)
+    alt_ex = "NFO" if "NSE" in exchange.upper() else ("BFO" if "BSE" in exchange.upper() else exchange)
+    alt_key = f"{alt_ex}:{symbol}"
+    if alt_key in _freeze_qty_cache:
+        return _freeze_qty_cache[alt_key]
+
+    # Standard exchange default fallbacks for major index/commodity underlyings
+    known_defaults = {
+        "NIFTY": 1800,
+        "BANKNIFTY": 900,
+        "FINNIFTY": 1800,
+        "MIDCPNIFTY": 4200,
+        "SENSEX": 1000,
+        "BANKEX": 900,
+        "CRUDEOIL": 10000,
+        "NATURALGAS": 10000,
+        "GOLD": 100,
+        "SILVER": 1200,
+    }
+    sym_upper = symbol.upper().strip()
+    if sym_upper in known_defaults:
+        return known_defaults[sym_upper]
 
     # If not found, return 1 as default
     return 1
