@@ -331,10 +331,22 @@ def update_credentials():
         # Write updated content back to .env
         env_path = get_env_path()
         try:
+            # Also update in-memory os.environ immediately so restart is not needed
+            if broker_api_key:
+                os.environ["BROKER_API_KEY"] = broker_api_key
+            if broker_api_secret:
+                os.environ["BROKER_API_SECRET"] = broker_api_secret
+            if broker_api_key_market:
+                os.environ["BROKER_API_KEY_MARKET"] = broker_api_key_market
+            if broker_api_secret_market:
+                os.environ["BROKER_API_SECRET_MARKET"] = broker_api_secret_market
+            if redirect_url:
+                os.environ["REDIRECT_URL"] = redirect_url
+
             # Use UTF-8 encoding for cross-platform compatibility
             with open(env_path, "w", encoding="utf-8") as f:
                 f.write(content)
-            logger.info(f"Updated broker credentials: {', '.join(updated_fields)}")
+            logger.info(f"Updated broker credentials in .env and memory: {', '.join(updated_fields)}")
         except Exception as e:
             logger.exception(f"Error writing .env file: {e}")
             return jsonify({"status": "error", "message": f"Failed to write .env file: {e}"}), 500
@@ -344,12 +356,92 @@ def update_credentials():
                 "status": "success",
                 "message": f"Credentials updated successfully. Updated: {', '.join(updated_fields)}",
                 "updated_fields": updated_fields,
-                "restart_required": True,
+                "restart_required": False,
             }
         )
 
     except Exception as e:
         logger.exception(f"Error updating broker credentials: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@broker_credentials_bp.route("/direct-connect", methods=["POST"])
+def direct_connect():
+    """
+    Directly save broker credentials, authenticate against Symphony XTS,
+    and activate master session immediately in 1 click.
+    """
+    from flask import session
+    from database.auth_db import store_auth_token, store_feed_token
+    from broker.acagarwal.api.auth_api import authenticate_broker
+
+    try:
+        data = request.get_json() or {}
+        broker_name = data.get("broker_name", "acagarwal").strip().lower()
+        broker_api_key = data.get("broker_api_key", "").strip()
+        broker_api_secret = data.get("broker_api_secret", "").strip()
+        broker_api_key_market = data.get("broker_api_key_market", "").strip()
+        broker_api_secret_market = data.get("broker_api_secret_market", "").strip()
+
+        if not broker_api_key or not broker_api_secret:
+            return jsonify({"status": "error", "message": "Interactive AppKey and SecretKey are required"}), 400
+
+        # 1. Update os.environ immediately in memory
+        os.environ["BROKER_API_KEY"] = broker_api_key
+        os.environ["BROKER_API_SECRET"] = broker_api_secret
+        if broker_api_key_market:
+            os.environ["BROKER_API_KEY_MARKET"] = broker_api_key_market
+        if broker_api_secret_market:
+            os.environ["BROKER_API_SECRET_MARKET"] = broker_api_secret_market
+        
+        redirect_url = f"http://127.0.0.1:5001/{broker_name}/callback"
+        os.environ["REDIRECT_URL"] = redirect_url
+
+        # 2. Persist to .env file
+        content, _ = read_env_file()
+        if content:
+            content = update_env_value(content, "BROKER_API_KEY", broker_api_key)
+            content = update_env_value(content, "BROKER_API_SECRET", broker_api_secret)
+            if broker_api_key_market:
+                content = update_env_value(content, "BROKER_API_KEY_MARKET", broker_api_key_market)
+            if broker_api_secret_market:
+                content = update_env_value(content, "BROKER_API_SECRET_MARKET", broker_api_secret_market)
+            content = update_env_value(content, "REDIRECT_URL", redirect_url)
+            env_path = get_env_path()
+            try:
+                with open(env_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except Exception as e:
+                logger.error(f"Error saving .env in direct-connect: {e}")
+
+        # 3. Authenticate directly with Symphony XTS
+        auth_token, feed_token, user_id, error_message = authenticate_broker(broker_name)
+        if error_message or not auth_token:
+            return jsonify({
+                "status": "error",
+                "message": f"Broker authentication failed: {error_message or 'Invalid credentials from Symphony XTS'}"
+            }), 400
+
+        # 4. Activate User Session
+        current_user = session.get("user", "admin")
+        store_auth_token(current_user, auth_token)
+        if feed_token:
+            store_feed_token(current_user, feed_token)
+        
+        session["logged_in"] = True
+        session["broker"] = broker_name
+        session["user_id"] = user_id or "MASTER"
+
+        logger.info(f"Direct connection successful for broker {broker_name} (User: {current_user}, XTS User: {user_id})")
+
+        return jsonify({
+            "status": "success",
+            "message": "Connected to AC Agarwal Symphony XTS successfully!",
+            "redirect": "/copytrading"
+        })
+
+    except Exception as e:
+        logger.exception(f"Error in direct-connect: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 

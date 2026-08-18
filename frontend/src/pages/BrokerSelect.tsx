@@ -103,24 +103,43 @@ export default function BrokerSelect() {
     try {
       const targetBroker = selectedBroker || 'acagarwal'
 
-      // If user entered or updated API credentials on the frontend, save them first
-      if (apiKey || apiSecret || apiKeyMarket || apiSecretMarket) {
+      if (targetBroker === 'acagarwal') {
+        if (!apiKey || !apiSecret) {
+          setError('Please enter your AC Agarwal Interactive App Key and Secret Key.')
+          setIsSubmitting(false)
+          return
+        }
+
         const payload = {
+          broker_name: 'acagarwal',
+          broker_api_key: apiKey.trim(),
+          broker_api_secret: apiSecret.trim(),
+          broker_api_key_market: apiKeyMarket.trim(),
+          broker_api_secret_market: apiSecretMarket.trim(),
+        }
+
+        const res = await webClient.post('/api/broker/direct-connect', payload)
+        if (res.data.status === 'success') {
+          useAuthStore.setState((state) => ({
+            user: state.user ? { ...state.user, broker: 'acagarwal' } : null,
+          }))
+          window.location.href = res.data.redirect || '/copytrading'
+          return
+        } else {
+          throw new Error(res.data.message || 'Authentication failed')
+        }
+      }
+
+      // Other brokers using standard callback flow
+      if (apiKey || apiSecret) {
+        await webClient.post('/api/broker/credentials', {
           broker_api_key: apiKey.trim(),
           broker_api_secret: apiSecret.trim(),
           broker_api_key_market: apiKeyMarket.trim(),
           broker_api_secret_market: apiSecretMarket.trim(),
           redirect_url: `http://${window.location.host}/${targetBroker}/callback`,
-        }
-
-        const saveRes = await webClient.post('/api/broker/credentials', payload)
-        const saveData = saveRes.data
-        if (saveData.status !== 'success') {
-          throw new Error(saveData.message || 'Failed to save broker credentials')
-        }
+        })
       }
-
-      // Connect to broker callback
       window.location.href = `/${targetBroker}/callback`
     } catch (err: any) {
       setError(err?.response?.data?.message || err.message || 'Failed to authenticate broker')
