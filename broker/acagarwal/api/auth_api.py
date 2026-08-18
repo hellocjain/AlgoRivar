@@ -8,6 +8,30 @@ from utils.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _extract_xts_error(response) -> str:
+    """Extract human-readable error messages from Symphony XTS responses."""
+    try:
+        data = response.json()
+        # Check for nested validation errors
+        errors_list = data.get("result", {}).get("errors", [])
+        if errors_list and isinstance(errors_list, list):
+            all_msgs = []
+            for item in errors_list:
+                if isinstance(item, dict) and "messages" in item:
+                    all_msgs.extend(item["messages"])
+                elif isinstance(item, str):
+                    all_msgs.append(item)
+            if all_msgs:
+                return "; ".join(all_msgs)
+
+        description = data.get("description") or data.get("message")
+        if description:
+            return description
+        return response.text
+    except Exception:
+        return response.text or f"HTTP {response.status_code}"
+
+
 def authenticate_broker(request_token=None):
     """
     Authenticates interactive and market data sessions for AC Agarwal (Symphony XTS).
@@ -33,37 +57,33 @@ def authenticate_broker(request_token=None):
         headers = {"Content-Type": "application/json"}
         session_url = f"{INTERACTIVE_URL}/user/session"
 
-        response = client.post(session_url, json=payload, headers=headers)
+        logger.info(f"[AC Agarwal] Authenticating Interactive API with appKey: {BROKER_API_KEY[:8]}... at {session_url}")
+        response = client.post(session_url, json=payload, headers=headers, timeout=10.0)
 
         if response.status_code == 200:
             result = response.json()
             if result.get("type") == "success":
                 token = result["result"]["token"]
-                logger.info(f"[AC Agarwal] Interactive Auth Token obtained successfully")
+                user_id = result["result"].get("userID")
+                logger.info(f"[AC Agarwal] Interactive Auth Token obtained successfully (User: {user_id})")
 
-                # Fetch market data feed token
-                feed_token, user_id, feed_error = get_feed_token()
+                # Fetch market data feed token (optional enhancement)
+                feed_token, feed_user_id, feed_error = get_feed_token()
                 if feed_error:
-                    return token, None, None, f"Feed token error: {feed_error}"
+                    logger.warning(f"[AC Agarwal] Market Data Feed Token notice: {feed_error}")
 
-                return token, feed_token, user_id, None
+                return token, feed_token, user_id or feed_user_id, None
             else:
-                return (
-                    None,
-                    None,
-                    None,
-                    f"Authentication failed: {result.get('description', 'No access token returned')}",
-                )
+                err_msg = result.get("description") or "No access token returned by Symphony XTS"
+                return None, None, None, f"Authentication failed: {err_msg}"
         else:
-            try:
-                error_detail = response.json()
-                error_message = error_detail.get("description") or error_detail.get("message", "Authentication failed")
-            except Exception:
-                error_message = response.text
-            return None, None, None, f"API error ({response.status_code}): {error_message}"
+            err_msg = _extract_xts_error(response)
+            logger.error(f"[AC Agarwal] Authentication failed (HTTP {response.status_code}): {err_msg}")
+            return None, None, None, f"AC Agarwal rejected credentials: {err_msg}"
 
     except Exception as e:
-        return None, None, None, f"Error during AC Agarwal authentication: {str(e)}"
+        logger.exception(f"[AC Agarwal] Exception during authentication: {e}")
+        return None, None, None, f"Error connecting to AC Agarwal: {str(e)}"
 
 
 def get_feed_token():
@@ -72,8 +92,8 @@ def get_feed_token():
     
     Quirk 2: Market-data login needs a fallback across multiple URL paths:
     1. /apimarketdata/auth/login
-    2. /apibinarymarketdata/auth/login
-    3. /marketdata/auth/login
+    2. /marketdata/auth/login
+    3. /apibinarymarketdata/auth/login
     First success wins.
     """
     try:
@@ -81,7 +101,7 @@ def get_feed_token():
         BROKER_API_SECRET_MARKET = os.getenv("BROKER_API_SECRET_MARKET")
 
         if not BROKER_API_KEY_MARKET or not BROKER_API_SECRET_MARKET:
-            return None, None, "Missing BROKER_API_KEY_MARKET or BROKER_API_SECRET_MARKET in environment"
+            return None, None, "Missing Market Data keys (optional)"
 
         # Quirk 1: source must be literal string "WEBAPI" (all caps)
         feed_payload = {
@@ -93,11 +113,11 @@ def get_feed_token():
         feed_headers = {"Content-Type": "application/json"}
         client = get_httpx_client()
 
-        # Quirk 2: List of candidate paths to attempt for market data login
+        # Candidate paths to attempt for market data login
         candidate_paths = [
             "/apimarketdata/auth/login",
-            "/apibinarymarketdata/auth/login",
             "/marketdata/auth/login",
+            "/apibinarymarketdata/auth/login",
         ]
 
         last_error = "No market data auth endpoint answered"
@@ -117,12 +137,12 @@ def get_feed_token():
                     else:
                         last_error = feed_result.get("description") or "Market data login rejected"
                 else:
-                    last_error = f"HTTP {feed_response.status_code} at {path}"
+                    last_error = _extract_xts_error(feed_response)
             except Exception as req_err:
                 logger.warning(f"[AC Agarwal] Market data login attempt failed at {path}: {str(req_err)}")
                 last_error = str(req_err)
 
-        return None, None, f"Market Data Auth failed on all candidate endpoints: {last_error}"
+        return None, None, f"Market Data Auth notice: {last_error}"
 
     except Exception as e:
         return None, None, f"Exception in get_feed_token: {str(e)}"
