@@ -196,3 +196,46 @@ def get_personal_funds(account_id: int):
         return jsonify({"status": "success", "funds": funds})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@retail_portal_bp.route("/subscriptions/<int:account_id>", methods=["GET"])
+def get_personal_subscriptions(account_id: int):
+    """
+    Fetch active strategy subscriptions for a retail client.
+    """
+    db = Session()
+    try:
+        mappings = db.query(ClientStrategyMapping).filter_by(account_id=account_id).all()
+        subs = []
+        for m in mappings:
+            strat = m.strategy
+            subs.append({
+                "mapping_id": m.id,
+                "strategy_id": m.strategy_id,
+                "strategy_tag": strat.strategy_tag if strat else "",
+                "strategy_name": strat.strategy_name if strat else "",
+                "segment": strat.segment if strat else "NSEFO",
+                "timeframe": strat.timeframe if strat else "15m",
+                "multiplier": m.multiplier,
+                "fixed_qty": m.fixed_qty,
+                "max_daily_loss": m.max_daily_loss,
+                "is_active": m.is_active,
+                "subscribed_at": m.created_at.isoformat() if m.created_at else None,
+            })
+        return jsonify({"status": "success", "subscriptions": subs})
+    except Exception as e:
+        logger.error(f"[Retail Portal] Subscriptions fetch error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        db.close()
+
+
+@retail_portal_bp.route("/squareoff/<int:account_id>", methods=["POST"])
+def squareoff_personal_account(account_id: int):
+    """
+    1-Click Emergency Square-Off for the retail client's own open positions.
+    """
+    from services.copy_risk_service import squareoff_by_account_id
+    res = squareoff_by_account_id(account_id)
+    return jsonify(res)
+

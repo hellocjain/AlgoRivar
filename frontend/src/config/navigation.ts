@@ -2,17 +2,14 @@ import {
   BarChart3,
   Bell,
   BookOpen,
-  CandlestickChart,
   ClipboardList,
   Code2,
   Database,
-  FileBarChart,
   FileStack,
   FileText,
   FlaskConical,
   Gauge,
   Key,
-  Layers,
   LayoutDashboard,
   type LucideIcon,
   MessageCircle,
@@ -35,28 +32,25 @@ export interface NavItem {
   external?: boolean
 }
 
-// Main navigation items shown in desktop navbar
+// Main navigation items shown in desktop navbar (Streamlined for zero-clutter)
 export const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/copytrading', label: 'Copy Trading', icon: Users },
+  { href: '/copytrading', label: 'Master Desk', icon: Users },
   { href: '/portal', label: 'Client Portal', icon: User },
   { href: '/orderbook', label: 'Orderbook', icon: ClipboardList },
-  { href: '/tradebook', label: 'Tradebook', icon: FileText },
   { href: '/positions', label: 'Positions', icon: TrendingUp },
-  { href: '/trading', label: 'Trading', icon: CandlestickChart },
-  { href: '/platforms', label: 'Platforms', icon: Layers },
-  { href: '/strategy', label: 'Strategy', icon: Code2 },
-  { href: '/logs', label: 'Logs', icon: FileBarChart },
+  { href: '/tradebook', label: 'Tradebook', icon: FileText },
+  { href: '/strategy', label: 'Strategies', icon: Code2 },
   { href: '/tools', label: 'Tools', icon: Wrench },
 ]
 
 // Items shown in mobile bottom navigation
 export const bottomNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/orderbook', label: 'Orderbook', icon: ClipboardList },
-  { href: '/tradebook', label: 'Tradebook', icon: FileText },
+  { href: '/copytrading', label: 'Desk', icon: Users },
+  { href: '/portal', label: 'Portal', icon: User },
   { href: '/positions', label: 'Positions', icon: TrendingUp },
-  { href: '/strategy', label: 'Strategy', icon: Code2 },
+  { href: '/orderbook', label: 'Orders', icon: ClipboardList },
 ]
 
 // Paths in bottom nav (for filtering mobile sheet items)
@@ -91,13 +85,8 @@ export const externalLinks = {
 }
 
 // Shared utility to check if a route is active
-// Uses startsWith for routes with nested pages (like /strategy/*)
 export function isActiveRoute(pathname: string, href: string): boolean {
   if (href === '/strategy') {
-    // Match on a path boundary, not a bare prefix. '/strategybuilder' starts
-    // with '/strategy', so a plain startsWith lit up the Strategy tab while
-    // the user was on a Tools page - the breadcrumb said TOOLS and the nav
-    // disagreed.
     return pathname === '/strategy' || pathname.startsWith('/strategy/')
   }
   return pathname === href

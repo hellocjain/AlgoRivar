@@ -223,6 +223,10 @@ export default function CopyTrading() {
   const [isAddStrategyOpen, setIsAddStrategyOpen] = useState<boolean>(false)
   const [isFireDrillOpen, setIsFireDrillOpen] = useState<boolean>(false)
   const [isTradeQualitiesOpen, setIsTradeQualitiesOpen] = useState<boolean>(false)
+  const [isWebhookPresetsOpen, setIsWebhookPresetsOpen] = useState<boolean>(false)
+  const [presetStrategyTag, setPresetStrategyTag] = useState<string>('CRUDE_MOMENTUM')
+  const [presetMode, setPresetMode] = useState<'strategy' | 'indicator' | 'chartink'>('strategy')
+  const [copiedPreset, setCopiedPreset] = useState<boolean>(false)
   const [tradeQualities, setTradeQualities] = useState<any[]>([])
   const [fireDrillRunning, setFireDrillRunning] = useState<boolean>(false)
   const [fireDrillReport, setFireDrillReport] = useState<any>(null)
@@ -1010,6 +1014,11 @@ if strategy.position_size != strategy.position_size[1]
           <Button variant="outline" size="sm" onClick={handleSyncBalances} disabled={syncing} className="gap-1.5">
             <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
             Sync Balances
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={() => setIsWebhookPresetsOpen(true)} className="gap-1.5">
+            <Code2 className="h-4 w-4 text-blue-400" />
+            TV & Chartink Presets
           </Button>
 
           <Button variant="outline" size="sm" onClick={() => setIsTradeQualitiesOpen(true)} className="gap-1.5">
@@ -2831,6 +2840,169 @@ if strategy.position_size != strategy.position_size[1]
 
           <DialogFooter>
             <Button size="sm" onClick={() => setIsTradeQualitiesOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 1-Click TV & Chartink Webhook Presets Modal */}
+      <Dialog open={isWebhookPresetsOpen} onOpenChange={setIsWebhookPresetsOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Code2 className="h-5 w-5 text-blue-400" />
+              1-Click Webhook Alert Presets
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Institutional alert payloads for TradingView Pine Script & Chartink scanners.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-2">
+            <div className="flex gap-2 border-b border-border/40 pb-2">
+              <Button
+                size="sm"
+                variant={presetMode === 'strategy' ? 'default' : 'outline'}
+                onClick={() => setPresetMode('strategy')}
+                className="text-xs h-7"
+              >
+                TradingView Strategy
+              </Button>
+              <Button
+                size="sm"
+                variant={presetMode === 'indicator' ? 'default' : 'outline'}
+                onClick={() => setPresetMode('indicator')}
+                className="text-xs h-7"
+              >
+                TradingView Indicator
+              </Button>
+              <Button
+                size="sm"
+                variant={presetMode === 'chartink' ? 'default' : 'outline'}
+                onClick={() => setPresetMode('chartink')}
+                className="text-xs h-7"
+              >
+                Chartink Screener
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Strategy Tag</Label>
+                <select
+                  value={presetStrategyTag}
+                  onChange={(e) => setPresetStrategyTag(e.target.value)}
+                  className="w-full text-xs bg-muted border border-border/60 rounded px-2.5 py-1.5 font-mono"
+                >
+                  <option value="CRUDE_MOMENTUM">CRUDE_MOMENTUM</option>
+                  <option value="NIFTY_TREND_PRO">NIFTY_TREND_PRO</option>
+                  <option value="BANKNIFTY_STRADDLE">BANKNIFTY_STRADDLE</option>
+                  <option value="SILVER100">SILVER100</option>
+                  <option value="SUPER_OPTION_SPREAD">SUPER_OPTION_SPREAD</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Webhook Endpoint</Label>
+                <Input
+                  readOnly
+                  value={`${window.location.origin}/api/copy-trading/webhook`}
+                  className="font-mono text-xs bg-muted/40 h-8"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">JSON Alert Message</Label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    let payload = ''
+                    if (presetMode === 'strategy') {
+                      payload = JSON.stringify({
+                        strategy: presetStrategyTag,
+                        symbol: '{{ticker}}',
+                        action: '{{strategy.order.action}}',
+                        quantity: 1,
+                        pricetype: 'MARKET',
+                        product: 'MIS',
+                      }, null, 2)
+                    } else if (presetMode === 'indicator') {
+                      payload = JSON.stringify({
+                        strategy: presetStrategyTag,
+                        symbol: '{{ticker}}',
+                        action: 'BUY',
+                        quantity: 1,
+                        pricetype: 'MARKET',
+                        product: 'MIS',
+                      }, null, 2)
+                    } else {
+                      payload = JSON.stringify({
+                        strategy: presetStrategyTag,
+                        scan_name: 'Breakout Intraday',
+                        stocks: '{{stocks}}',
+                        trigger_price: '{{trigger_price}}',
+                        action: 'BUY',
+                      }, null, 2)
+                    }
+                    navigator.clipboard.writeText(payload)
+                    setCopiedPreset(true)
+                    setTimeout(() => setCopiedPreset(false), 3000)
+                  }}
+                  className="h-7 text-xs text-blue-400 hover:text-blue-300"
+                >
+                  {copiedPreset ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-400" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+                  {copiedPreset ? 'Copied to Clipboard!' : 'Copy Alert Payload'}
+                </Button>
+              </div>
+
+              <pre className="p-3 rounded-lg bg-slate-950 text-emerald-400 text-xs font-mono overflow-x-auto border border-border/40 max-h-48">
+                {presetMode === 'strategy' &&
+                  JSON.stringify(
+                    {
+                      strategy: presetStrategyTag,
+                      symbol: '{{ticker}}',
+                      action: '{{strategy.order.action}}',
+                      quantity: 1,
+                      pricetype: 'MARKET',
+                      product: 'MIS',
+                    },
+                    null,
+                    2
+                  )}
+                {presetMode === 'indicator' &&
+                  JSON.stringify(
+                    {
+                      strategy: presetStrategyTag,
+                      symbol: '{{ticker}}',
+                      action: 'BUY',
+                      quantity: 1,
+                      pricetype: 'MARKET',
+                      product: 'MIS',
+                    },
+                    null,
+                    2
+                  )}
+                {presetMode === 'chartink' &&
+                  JSON.stringify(
+                    {
+                      strategy: presetStrategyTag,
+                      scan_name: 'Breakout Intraday',
+                      stocks: '{{stocks}}',
+                      trigger_price: '{{trigger_price}}',
+                      action: 'BUY',
+                    },
+                    null,
+                    2
+                  )}
+              </pre>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setIsWebhookPresetsOpen(false)}>
               Done
             </Button>
           </DialogFooter>
