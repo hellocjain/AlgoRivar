@@ -457,7 +457,7 @@ def direct_connect():
                 update_child_account(
                     account_id=existing[0]["id"],
                     account_name=f"Master ({effective_client_id})",
-                    broker=broker_name,
+                    client_code=effective_client_id,
                     api_key=broker_api_key,
                     api_secret=broker_api_secret,
                     api_key_market=broker_api_key_market,
@@ -468,13 +468,13 @@ def direct_connect():
                 add_child_account(
                     account_name=f"Master ({effective_client_id})",
                     client_code=effective_client_id,
-                    broker=broker_name,
                     api_key=broker_api_key,
                     api_secret=broker_api_secret,
                     api_key_market=broker_api_key_market,
                     api_secret_market=broker_api_secret_market,
+                    broker=broker_name,
                     multiplier=1.0,
-                    is_active=True,
+                    is_primary=True,
                 )
         except Exception as e:
             logger.warning(f"Note: Could not register master in copy accounts table: {e}")
