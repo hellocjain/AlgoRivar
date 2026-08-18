@@ -62,6 +62,7 @@ if [ ! -f .env ] || ! grep -q "BROKER_API_KEY" .env 2>/dev/null; then
     sed -i.bak "s/OPENALGO_PLACEHOLDER_APP_KEY_REGENERATE_BEFORE_USE/${SEC_KEY}/g" .env
     sed -i.bak "s/OPENALGO_PLACEHOLDER_API_KEY_PEPPER_REGENERATE_BEFORE_USE/${PEPPER}/g" .env
     sed -i.bak "s/OPENALGO_PLACEHOLDER_FERNET_SALT_REGENERATE_BEFORE_USE/${SALT}/g" .env
+    sed -i.bak "s|<broker>|acagarwal|g" .env
     sed -i.bak "s|DATABASE_URL = 'sqlite:///db/openalgo.db'|DATABASE_URL = 'postgresql://algorivar_user:${PG_PASS}@algorivar-postgres:5432/algorivar'|g" .env
     rm -f .env.bak
 

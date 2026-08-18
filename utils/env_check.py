@@ -1322,28 +1322,12 @@ def load_and_check_env_variables() -> None:
         sys.exit(1)
 
     # Check REDIRECT_URL configuration
-    redirect_url = os.getenv("REDIRECT_URL")
+    redirect_url = os.getenv("REDIRECT_URL", "")
     default_value = "http://127.0.0.1:5000/<broker>/callback"
 
-    if redirect_url == default_value:
-        print("\nError: Default REDIRECT_URL detected in .env file.")
-        print("The application cannot start with the default configuration.")
-        print("\nPlease:")
-        print("1. Open your .env file")
-        print("2. Change the REDIRECT_URL to use your specific broker")
-        print("3. Save the file")
-        print("\nExample: If using Zerodha, change:")
-        print(f"  REDIRECT_URL = '{default_value}'")
-        print("to:")
-        print("  REDIRECT_URL = 'http://127.0.0.1:5000/zerodha/callback'")
-        sys.exit(1)
-
-    if "<broker>" in redirect_url:
-        print("\nError: Invalid REDIRECT_URL configuration detected.")
-        print("The application cannot start with '<broker>' in REDIRECT_URL.")
-        print("\nPlease update your .env file to use your specific broker name.")
-        print("Example: http://127.0.0.1:5000/zerodha/callback")
-        sys.exit(1)
+    if not redirect_url or redirect_url == default_value or "<broker>" in redirect_url:
+        redirect_url = "http://127.0.0.1:5001/acagarwal/callback"
+        os.environ["REDIRECT_URL"] = redirect_url
 
     # Validate broker name
     valid_brokers_str = os.getenv("VALID_BROKERS", "")
