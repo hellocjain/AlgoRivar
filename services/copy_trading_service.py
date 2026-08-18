@@ -188,6 +188,10 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
 
     ex = normalize_exchange_segment(exchange, clean_sym)
 
+    target_base = clean_sym
+    if clean_sym in ["SILVER100", "SILVER100G", "SILVER_100"]:
+        target_base = "SILVERMIC"
+
     # 1. If it already has month code (e.g. 24AUG / 26AUG / FUT / CE / PE / numbers at the end), keep exact
     month_names = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
     has_month = any(m in clean_sym for m in month_names)
@@ -198,7 +202,7 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
     try:
         from database.token_db import get_token, search_symbols
         search_ex = "MCX" if "MCX" in ex else ("NSE" if "NSE" in ex else "BSE")
-        cached_matches = search_symbols(clean_sym, exchange=search_ex, limit=50)
+        cached_matches = search_symbols(target_base, exchange=search_ex, limit=50) or search_symbols(clean_sym, exchange=search_ex, limit=50)
         if cached_matches:
             for m in cached_matches:
                 sym_up = str(m.get("symbol", "")).upper()
@@ -207,26 +211,6 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
                     continue
                 if sym_up.endswith("FUT") or itype in ["FUTCOM", "FUTIDX", "FUTSTK", "FUT"] or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
                     logger.info(f"[Symbol Resolver] Resolved '{clean_sym}' -> '{sym_up}' from in-memory Token Cache")
-                    return sym_up
-        elif "SILVER" in clean_sym:
-            # Fallback search for active MCX Silver contracts
-            alt_matches = search_symbols("SILVERMIC", exchange=search_ex, limit=10) or search_symbols("SILVER", exchange=search_ex, limit=10)
-            for m in alt_matches:
-                sym_up = str(m.get("symbol", "")).upper()
-                if sym_up.endswith("FUT") or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
-                    logger.info(f"[Symbol Resolver] Resolved continuous '{clean_sym}' -> '{sym_up}' from Token Cache")
-                    return sym_up
-        elif "CRUDE" in clean_sym:
-            alt_matches = search_symbols("CRUDEOIL", exchange=search_ex, limit=10)
-            for m in alt_matches:
-                sym_up = str(m.get("symbol", "")).upper()
-                if sym_up.endswith("FUT") or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
-                    return sym_up
-        elif "NATURAL" in clean_sym or "NATGAS" in clean_sym:
-            alt_matches = search_symbols("NATURALGAS", exchange=search_ex, limit=10)
-            for m in alt_matches:
-                sym_up = str(m.get("symbol", "")).upper()
-                if sym_up.endswith("FUT") or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
                     return sym_up
 
         # Fallback to SQLite DB if cache not yet populated
@@ -237,7 +221,12 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
         matches = (
             db_session.query(SymToken)
             .filter(
-                or_(SymToken.name == clean_sym, SymToken.symbol.like(f"{clean_sym}%")),
+                or_(
+                    SymToken.name == target_base,
+                    SymToken.name == clean_sym,
+                    SymToken.symbol.like(f"{target_base}%"),
+                    SymToken.symbol.like(f"{clean_sym}%"),
+                ),
                 SymToken.exchange.ilike(f"%{search_ex}%"),
             )
             .order_by(SymToken.expiry.asc())

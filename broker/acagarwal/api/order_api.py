@@ -174,7 +174,8 @@ def place_order_api(data, auth):
             except Exception as quote_err:
                 logger.warning(f"[AC Agarwal] Failed to compute synthetic limit price: {quote_err}")
 
-        token = get_token(symbol, exchange) if symbol and exchange else None
+        norm_ex = "MCX" if "MCX" in str(exchange).upper() else ("NFO" if "NFO" in str(exchange).upper() or "NSEFO" in str(exchange).upper() else exchange)
+        token = (get_token(symbol, exchange) or get_token(symbol, norm_ex)) if symbol and exchange else None
         newdata = transform_data(data, token)
 
         client = get_httpx_client()
