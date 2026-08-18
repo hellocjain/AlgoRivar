@@ -35,6 +35,7 @@ fi
 if [ ! -f .env ]; then
     echo -e "${CYAN}Generating secure production .env configuration...${NC}"
     SEC_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32)
+    PEPPER=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32)
     PG_PASS=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
     REDIS_PASS=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
 
@@ -43,6 +44,7 @@ FLASK_ENV=production
 HOST=0.0.0.0
 PORT=5001
 SECRET_KEY=${SEC_KEY}
+API_KEY_PEPPER=${PEPPER}
 POSTGRES_DB=algorivar
 POSTGRES_USER=algorivar_user
 POSTGRES_PASSWORD=${PG_PASS}
