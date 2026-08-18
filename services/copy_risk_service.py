@@ -404,8 +404,8 @@ def fetch_client_profile_details(account_id: int) -> Dict[str, Any]:
                         qty_raw = p.get("netQuantity", p.get("Quantity", p.get("quantity", p.get("netQty", 0))))
                         qty = int(qty_raw or 0)
                         if qty != 0:
-                            avg_p = float(p.get("buyAveragePrice" if qty > 0 else "sellAveragePrice", p.get("averagePrice", p.get("avgPrice", 0.0))) or 0.0)
-                            pnl_val = float(p.get("unrealizedMTM", p.get("unrealizedMTM", 0.0)) or 0.0) + float(p.get("realizedMTM", p.get("realizedMTM", 0.0)) or 0.0) or float(p.get("mtm", p.get("pnl", 0.0)) or 0.0)
+                            avg_p = float(p.get("BuyAveragePrice" if qty > 0 else "SellAveragePrice", p.get("buyAveragePrice" if qty > 0 else "sellAveragePrice", p.get("ActualBuyAveragePrice", p.get("averagePrice", p.get("avgPrice", 0.0))))) or 0.0)
+                            pnl_val = float(p.get("unrealizedMTM", p.get("UnrealizedMTM", p.get("realizedMTM", p.get("MTM", 0.0)))) or 0.0)
                             positions.append({
                                 "symbol": p.get("TradingSymbol", p.get("tradingSymbol", p.get("symbol", ""))),
                                 "exchange": p.get("ExchangeSegment", p.get("exchangeSegment", p.get("exchange", "MCXFO"))),
