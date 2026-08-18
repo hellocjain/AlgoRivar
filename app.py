@@ -1045,8 +1045,8 @@ else:
 
 # Start Flask development server with SocketIO support if directly executed
 if __name__ == "__main__":
-    host_ip = os.getenv("FLASK_HOST_IP", "127.0.0.1")
-    port = int(os.getenv("FLASK_PORT", 5000))
+    host_ip = os.getenv("FLASK_HOST_IP") or os.getenv("HOST") or "0.0.0.0"
+    port = int(os.getenv("PORT") or os.getenv("FLASK_PORT") or 5001)
     debug = os.getenv("FLASK_DEBUG", "False").lower() in ("true", "1", "t")
 
     # Refuse to run the Werkzeug debugger on a non-loopback interface.

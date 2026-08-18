@@ -47,6 +47,8 @@ services:
       - FLASK_ENV=production
       - HOST=0.0.0.0
       - PORT=5001
+      - FLASK_HOST_IP=0.0.0.0
+      - FLASK_PORT=5001
       - DATABASE_URL=postgresql://${POSTGRES_USER:-algorivar_user}:${POSTGRES_PASSWORD:-algorivar_secret_pass_2026}@algorivar-postgres:5432/${POSTGRES_DB:-algorivar}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-algorivar_redis_pass_2026}@algorivar-redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-algorivar_default_super_secret_jwt_key_2026}
