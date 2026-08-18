@@ -396,18 +396,23 @@ def fetch_client_profile_details(account_id: int) -> Dict[str, Any]:
             p_resp = requests.get(f"{INTERACTIVE_URL}/portfolio/positions?dayOrNet=NetWise", headers=headers, timeout=4)
             if p_resp.status_code == 200:
                 p_data = p_resp.json()
-                if p_data.get("type") == "success":
-                    raw_positions = p_data.get("result", {}).get("positionList", []) or []
-                    for p in raw_positions:
-                        qty = int(p.get("netQuantity", 0) or 0)
+                if p_data.get("type") == "success" or isinstance(p_data.get("result"), (dict, list)):
+                    raw_positions = p_data.get("result", {}).get("positionList", []) if isinstance(p_data.get("result"), dict) else (p_data.get("result") if isinstance(p_data.get("result"), list) else [])
+                    for p in (raw_positions or []):
+                        if not isinstance(p, dict):
+                            continue
+                        qty_raw = p.get("netQuantity", p.get("Quantity", p.get("quantity", p.get("netQty", 0))))
+                        qty = int(qty_raw or 0)
                         if qty != 0:
+                            avg_p = float(p.get("buyAveragePrice" if qty > 0 else "sellAveragePrice", p.get("averagePrice", p.get("avgPrice", 0.0))) or 0.0)
+                            pnl_val = float(p.get("unrealizedMTM", p.get("unrealizedMTM", 0.0)) or 0.0) + float(p.get("realizedMTM", p.get("realizedMTM", 0.0)) or 0.0) or float(p.get("mtm", p.get("pnl", 0.0)) or 0.0)
                             positions.append({
-                                "symbol": p.get("TradingSymbol", ""),
-                                "exchange": p.get("ExchangeSegment", "NSEFO"),
+                                "symbol": p.get("TradingSymbol", p.get("tradingSymbol", p.get("symbol", ""))),
+                                "exchange": p.get("ExchangeSegment", p.get("exchangeSegment", p.get("exchange", "MCXFO"))),
                                 "quantity": qty,
-                                "product": p.get("ProductType", "MIS"),
-                                "avg_price": float(p.get("buyAveragePrice" if qty > 0 else "sellAveragePrice", 0.0) or 0.0),
-                                "pnl": float(p.get("unrealizedMTM", 0.0) or 0.0) + float(p.get("realizedMTM", 0.0) or 0.0),
+                                "product": p.get("ProductType", p.get("productType", p.get("product", "NRML"))),
+                                "avg_price": avg_p,
+                                "pnl": pnl_val,
                             })
         except Exception as e:
             logger.debug(f"[Profile] Position fetch error for {account_id}: {e}")
@@ -416,17 +421,19 @@ def fetch_client_profile_details(account_id: int) -> Dict[str, Any]:
             o_resp = requests.get(f"{INTERACTIVE_URL}/orders", headers=headers, timeout=4)
             if o_resp.status_code == 200:
                 o_data = o_resp.json()
-                if o_data.get("type") == "success":
+                if o_data.get("type") == "success" or isinstance(o_data.get("result"), list):
                     raw_orders = o_data.get("result", []) or []
-                    for o in raw_orders:
-                        st = str(o.get("OrderStatus", "")).upper()
-                        if st in ["OPEN", "PENDING", "NEW", "TRIGGER PENDING"]:
+                    for o in (raw_orders or []):
+                        if not isinstance(o, dict):
+                            continue
+                        st = str(o.get("OrderStatus", o.get("orderStatus", o.get("status", "")))).upper()
+                        if st in ["OPEN", "PENDING", "NEW", "TRIGGER PENDING", "ACCEPTED"]:
                             open_orders.append({
-                                "order_id": str(o.get("AppOrderID", "")),
-                                "symbol": o.get("TradingSymbol", ""),
-                                "action": o.get("OrderSide", "BUY"),
-                                "quantity": int(o.get("OrderQuantity", 0) or 0),
-                                "price": float(o.get("OrderPrice", 0.0) or 0.0),
+                                "order_id": str(o.get("AppOrderID", o.get("appOrderID", o.get("orderId", "")))),
+                                "symbol": o.get("TradingSymbol", o.get("tradingSymbol", o.get("symbol", ""))),
+                                "action": o.get("OrderSide", o.get("orderSide", o.get("action", "BUY"))),
+                                "quantity": int(o.get("OrderQuantity", o.get("orderQuantity", o.get("quantity", 0))) or 0),
+                                "price": float(o.get("OrderPrice", o.get("orderPrice", o.get("price", 0.0))) or 0.0),
                                 "status": st,
                             })
         except Exception as e:
