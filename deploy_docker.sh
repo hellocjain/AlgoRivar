@@ -75,6 +75,9 @@ ENV
     echo -e "${GREEN}Created .env file with generated cryptographic secrets.${NC}"
 fi
 
+# Clean any old or renamed containers to prevent name conflicts
+docker compose down --remove-orphans 2>/dev/null || true
+
 # Build & Launch Stack
 echo -e "${CYAN}Building & Starting AlgoRivar SaaS Container Stack...${NC}"
 docker compose up -d --build
