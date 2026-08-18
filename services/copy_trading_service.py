@@ -616,6 +616,7 @@ def execute_order_for_single_account(
             "price": str(price) if price else "0",
             "trigger_price": str(trigger_price) if trigger_price else "0",
             "disclosed_quantity": "0",
+            "client_id": client_code,
         }
 
         # 🎯 SANDBOX / SIMULATION MODE SUPPORT
