@@ -242,10 +242,13 @@ export default function BrokerSelect() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Interactive Secret Key</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">Interactive Secret Key (Password)</Label>
+                          <span className="text-[10px] text-muted-foreground">Max 12 chars / Symphony password</span>
+                        </div>
                         <Input
                           type="password"
-                          placeholder="Enter XTS Interactive Secret"
+                          placeholder="Enter XTS Interactive Secret / Password"
                           value={apiSecret}
                           onChange={(e) => setApiSecret(e.target.value)}
                           className="font-mono text-xs"
@@ -261,14 +264,29 @@ export default function BrokerSelect() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Market Data Secret Key</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">Market Data Secret Key (Password)</Label>
+                          <span className="text-[10px] text-muted-foreground">Max 12 chars / Symphony password</span>
+                        </div>
                         <Input
                           type="password"
-                          placeholder="Enter XTS Market Data Secret"
+                          placeholder="Enter XTS Market Data Secret / Password"
                           value={apiSecretMarket}
                           onChange={(e) => setApiSecretMarket(e.target.value)}
                           className="font-mono text-xs"
                         />
+                      </div>
+
+                      <div className="rounded bg-muted/40 p-2.5 text-[11px] text-muted-foreground space-y-1 border border-border/50">
+                        <div className="font-semibold text-foreground flex items-center gap-1.5">
+                          <span>💡 Symphony XTS Quick Tip:</span>
+                        </div>
+                        <p>
+                          1. <strong>Secret Key:</strong> Enter your Symphony API trading password (max 12 characters, e.g. <code className="text-primary font-mono">Pass@1234</code>).
+                        </p>
+                        <p>
+                          2. <strong>IP Whitelisting:</strong> If your AC Agarwal Symphony developer portal asks for a Trusted IP, whitelist your server IP: <code className="text-primary font-mono select-all">168.144.22.51</code>.
+                        </p>
                       </div>
                     </div>
                   ) : (
