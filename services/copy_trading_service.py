@@ -194,13 +194,26 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
     if clean_sym.endswith("FUT") or clean_sym.endswith("CE") or clean_sym.endswith("PE") or (has_month and any(c.isdigit() for c in clean_sym)):
         return clean_sym
 
-    # 2. Try querying master SymToken DB table if available
+    # 2. Try querying master Token Cache & SymToken DB
     try:
+        from database.token_db import get_token, search_symbols
+        search_ex = "MCX" if "MCX" in ex else ("NSE" if "NSE" in ex else "BSE")
+        cached_matches = search_symbols(clean_sym, exchange=search_ex, limit=50)
+        if cached_matches:
+            for m in cached_matches:
+                sym_up = str(m.get("symbol", "")).upper()
+                itype = str(m.get("instrumenttype", "")).upper()
+                if sym_up.endswith("CE") or sym_up.endswith("PE") or "OPT" in itype:
+                    continue
+                if sym_up.endswith("FUT") or itype in ["FUTCOM", "FUTIDX", "FUTSTK", "FUT"] or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
+                    logger.info(f"[Symbol Resolver] Resolved '{clean_sym}' -> '{sym_up}' from in-memory Token Cache")
+                    return sym_up
+
+        # Fallback to SQLite DB if cache not yet populated
         from database.symbol import SymToken, db_session
         from sqlalchemy import or_
 
         now_str = datetime.utcnow().strftime("%Y-%m-%d")
-        search_ex = "MCX" if "MCX" in ex else ("NSE" if "NSE" in ex else "BSE")
         matches = (
             db_session.query(SymToken)
             .filter(
@@ -227,7 +240,7 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
                     if sym_up.endswith("FUT") or itype in ["FUTCOM", "FUTIDX", "FUTSTK", "FUT"]:
                         return m.symbol
     except Exception as ex_db:
-        logger.debug(f"[Symbol Resolver] SymToken lookup skipped: {ex_db}")
+        logger.debug(f"[Symbol Resolver] Token lookup notice: {ex_db}")
 
     # 3. Dynamic Date Construction Fallback:
     now = datetime.now()
