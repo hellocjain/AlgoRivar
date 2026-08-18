@@ -49,30 +49,35 @@ if ! docker compose version &> /dev/null; then
     apt-get update && apt-get install -y docker-compose-plugin
 fi
 
-# Generate .env if missing
-if [ ! -f .env ]; then
-    echo -e "${CYAN}Generating secure production .env configuration...${NC}"
+# Generate .env if missing or incomplete
+if [ ! -f .env ] || ! grep -q "BROKER_API_KEY" .env 2>/dev/null; then
+    echo -e "${CYAN}Generating complete production .env configuration...${NC}"
+    cp .sample.env .env
     SEC_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32)
     PEPPER=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || openssl rand -hex 32)
+    SALT=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
     PG_PASS=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
     REDIS_PASS=$(python3 -c "import secrets; print(secrets.token_hex(16))" 2>/dev/null || openssl rand -hex 16)
 
-    cat <<ENV > .env
-FLASK_ENV=production
-HOST=0.0.0.0
-PORT=5001
-SECRET_KEY=${SEC_KEY}
-API_KEY_PEPPER=${PEPPER}
+    sed -i.bak "s/OPENALGO_PLACEHOLDER_APP_KEY_REGENERATE_BEFORE_USE/${SEC_KEY}/g" .env
+    sed -i.bak "s/OPENALGO_PLACEHOLDER_API_KEY_PEPPER_REGENERATE_BEFORE_USE/${PEPPER}/g" .env
+    sed -i.bak "s/OPENALGO_PLACEHOLDER_FERNET_SALT_REGENERATE_BEFORE_USE/${SALT}/g" .env
+    sed -i.bak "s|DATABASE_URL = 'sqlite:///db/openalgo.db'|DATABASE_URL = 'postgresql://algorivar_user:${PG_PASS}@algorivar-postgres:5432/algorivar'|g" .env
+    rm -f .env.bak
+
+    cat <<ENV >> .env
+
+# PostgreSQL & Redis Production Configuration
 POSTGRES_DB=algorivar
 POSTGRES_USER=algorivar_user
 POSTGRES_PASSWORD=${PG_PASS}
 REDIS_PASSWORD=${REDIS_PASS}
-DATABASE_URL=postgresql://algorivar_user:${PG_PASS}@algorivar-postgres:5432/algorivar
 REDIS_URL=redis://:${REDIS_PASS}@algorivar-redis:6379/0
+SECRET_KEY=${SEC_KEY}
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 ENV
-    echo -e "${GREEN}Created .env file with generated cryptographic secrets.${NC}"
+    echo -e "${GREEN}Created complete .env file with generated cryptographic secrets.${NC}"
 fi
 
 # Clean any old or renamed containers to prevent name conflicts

@@ -54,6 +54,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
     volumes:
+      - ./.env:/app/.env
       - app_db_data:/app/db
       - app_log_data:/app/logs
     networks:
