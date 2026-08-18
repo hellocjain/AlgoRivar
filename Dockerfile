@@ -25,8 +25,8 @@ ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
 # Healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:5001/auth/app-info || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:5001/app-info || curl -f http://localhost:5001/ || exit 1
 
 # Start AlgoRivar App
 CMD ["python3", "app.py"]

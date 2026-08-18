@@ -50,6 +50,7 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-algorivar_user}:${POSTGRES_PASSWORD:-algorivar_secret_pass_2026}@algorivar-postgres:5432/${POSTGRES_DB:-algorivar}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-algorivar_redis_pass_2026}@algorivar-redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-algorivar_default_super_secret_jwt_key_2026}
+      - APP_KEY=${SECRET_KEY:-algorivar_default_super_secret_jwt_key_2026}
       - API_KEY_PEPPER=${API_KEY_PEPPER:-algorivar_api_pepper_1234567890abcdef1234567890abcdef}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
