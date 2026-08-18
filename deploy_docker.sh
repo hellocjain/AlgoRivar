@@ -81,6 +81,15 @@ ENV
     echo -e "${GREEN}Created complete .env file with generated cryptographic secrets.${NC}"
 fi
 
+# Ensure existing .env files include acagarwal in VALID_BROKERS and valid REDIRECT_URL
+if [ -f .env ]; then
+    if ! grep -q "acagarwal" .env 2>/dev/null; then
+        sed -i.bak "s/VALID_BROKERS = '/VALID_BROKERS = 'acagarwal,/g" .env 2>/dev/null || true
+        sed -i.bak "s|<broker>|acagarwal|g" .env 2>/dev/null || true
+        rm -f .env.bak
+    fi
+fi
+
 # Clean any old or renamed containers to prevent name conflicts
 docker compose down --remove-orphans 2>/dev/null || true
 

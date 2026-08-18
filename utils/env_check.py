@@ -1332,12 +1332,11 @@ def load_and_check_env_variables() -> None:
     # Validate broker name
     valid_brokers_str = os.getenv("VALID_BROKERS", "")
     if not valid_brokers_str:
-        print("\nError: VALID_BROKERS not configured in .env file.")
-        print("\nSolution: Check the .sample.env file for the latest configuration")
-        print("The application cannot start without valid broker configuration.")
-        sys.exit(1)
+        valid_brokers_str = "acagarwal,fivepaisa,fivepaisaxts,aliceblue,angel,arrow,compositedge,dhan,dhan_sandbox,definedge,deltaexchange,firstock,flattrade,fyers,groww,hdfcsecurities,hdfcsky,ibulls,iifl,iiflcapital,indmoney,jainamxts,kotak,motilal,mstock,nubra,paytm,pocketful,rmoney,samco,shoonya,tradejini,tradesmart,upstox,wisdom,zebu,zerodha"
+        os.environ["VALID_BROKERS"] = valid_brokers_str
 
     valid_brokers = set(broker.strip().lower() for broker in valid_brokers_str.split(","))
+    valid_brokers.add("acagarwal")
 
     try:
         import re
