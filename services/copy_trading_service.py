@@ -177,6 +177,15 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
     if not symbol:
         return ""
     clean_sym = symbol.strip().upper()
+    if ":" in clean_sym:
+        clean_sym = clean_sym.split(":")[-1].strip()
+
+    # Strip TradingView continuous contract indicators (e.g. SILVER1001! -> SILVER100, SILVERMIC1! -> SILVERMIC)
+    if clean_sym.endswith("1!") or clean_sym.endswith("2!"):
+        clean_sym = clean_sym[:-2]
+    elif clean_sym.endswith("!"):
+        clean_sym = clean_sym[:-1]
+
     ex = normalize_exchange_segment(exchange, clean_sym)
 
     # 1. If it already has month code (e.g. 24AUG / 26AUG / FUT / CE / PE / numbers at the end), keep exact
@@ -359,6 +368,8 @@ def get_inferred_lot_size(symbol: str, exchange: str) -> int:
             return 10
         if sym.startswith("GOLD"):
             return 100
+        if sym.startswith("SILVER100"):
+            return 1
         if sym.startswith("SILVERMIC"):
             return 1
         if sym.startswith("SILVERM"):

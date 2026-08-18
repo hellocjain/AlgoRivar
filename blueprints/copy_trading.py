@@ -52,6 +52,7 @@ from utils.logging import get_logger
 logger = get_logger(__name__)
 
 copy_trading_bp = Blueprint("copy_trading_bp", __name__, url_prefix="/api/copy-trading")
+copy_trading_alias_bp = Blueprint("copy_trading_alias_bp", __name__, url_prefix="/api/copytrading")
 
 
 # =====================================================================
@@ -530,6 +531,8 @@ def is_authenticated_webhook(data: dict) -> bool:
 
 @copy_trading_bp.route("/webhook", methods=["POST"])
 @copy_trading_bp.route("/signal", methods=["POST"])
+@copy_trading_alias_bp.route("/webhook", methods=["POST"])
+@copy_trading_alias_bp.route("/signal", methods=["POST"])
 def copy_webhook():
     """
     Replicate external trading signal across all mapped child accounts.

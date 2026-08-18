@@ -58,7 +58,7 @@ from blueprints.broker_credentials import (
 )
 from blueprints.chart_test import chart_test_bp  # Standalone chart test page (dev/testing only)
 from blueprints.chartink import chartink_bp  # Import the chartink blueprint
-from blueprints.copy_trading import copy_trading_bp  # Import Copy Trading blueprint
+from blueprints.copy_trading import copy_trading_bp, copy_trading_alias_bp  # Import Copy Trading blueprints
 from blueprints.retail_portal import retail_portal_bp  # Import Retail Client Portal blueprint
 from blueprints.core import core_bp
 from blueprints.custom_straddle import custom_straddle_bp  # Import custom straddle blueprint
@@ -335,6 +335,8 @@ def create_app():
     app.register_blueprint(postback_bp)  # Register broker postback (order-update webhook) blueprint
     app.register_blueprint(copy_trading_bp)  # Register Copy Trading blueprint
     csrf.exempt(copy_trading_bp)
+    app.register_blueprint(copy_trading_alias_bp)  # Register Copy Trading alias (/api/copytrading)
+    csrf.exempt(copy_trading_alias_bp)
     app.register_blueprint(retail_portal_bp)  # Register Retail Portal blueprint
     csrf.exempt(retail_portal_bp)
     init_copy_trading_db()
