@@ -1,37 +1,22 @@
-# Multi-stage Dockerfile for AlgoRivar SaaS Platform
-# Stage 1: Frontend Build (Node.js 22)
-FROM node:22-alpine AS frontend-builder
-WORKDIR /app/frontend
-
-COPY frontend/package*.json ./
-RUN npm ci --prefer-offline --no-audit
-
-COPY frontend/ ./
-RUN npm run build
-
-# Stage 2: Production Backend (Python 3.12 Slim)
+# Ultra-Fast Production Dockerfile for AlgoRivar SaaS Platform
+# Uses pre-built frontend/dist and binary wheels for sub-60s builds on 1-vCPU servers
 FROM python:3.12-slim AS runner
 
 WORKDIR /app
 
-# System dependencies for cryptography, build-tools, and SQLite/PostgreSQL
+# System dependencies for healthcheck and runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Install Python dependencies using fast binary wheels
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir psycopg2-binary redis gunicorn eventlet
 
-# Copy Backend Source
+# Copy Application Source (includes pre-built frontend/dist)
 COPY . /app
-
-# Copy Built Frontend Assets from Stage 1
-COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
 # Expose Web Port (5001) and WebSocket Proxy Port (8765)
 EXPOSE 5001 8765
