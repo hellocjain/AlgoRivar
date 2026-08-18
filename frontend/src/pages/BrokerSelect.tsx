@@ -1,6 +1,7 @@
 import { BookOpen, ExternalLink, Key, Loader2, Settings, ShieldCheck, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
+import { webClient } from '@/api/client'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -74,20 +75,16 @@ export default function BrokerSelect() {
     // Fetch broker configuration & current credentials
     const fetchBrokerConfig = async () => {
       try {
-        const response = await fetch('/auth/broker-config', {
-          credentials: 'include',
-        })
-        const data = await response.json()
+        const response = await webClient.get('/auth/broker-config')
+        const data = response.data
 
         if (data.status === 'success') {
           setSelectedBroker(data.broker_name || 'acagarwal')
         }
 
         // Fetch current masked credentials to check if configured
-        const credsRes = await fetch('/api/broker/credentials', {
-          credentials: 'include',
-        })
-        const credsData = await credsRes.json()
+        const credsRes = await webClient.get('/api/broker/credentials')
+        const credsData = credsRes.data
         if (credsData.status === 'success' && credsData.data) {
           if (credsData.data.broker_api_key_raw_length > 0) {
             setShowConfig(false)
@@ -122,14 +119,8 @@ export default function BrokerSelect() {
           redirect_url: `http://${window.location.host}/${targetBroker}/callback`,
         }
 
-        const saveRes = await fetch('/api/broker/credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(payload),
-        })
-
-        const saveData = await saveRes.json()
+        const saveRes = await webClient.post('/api/broker/credentials', payload)
+        const saveData = saveRes.data
         if (saveData.status !== 'success') {
           throw new Error(saveData.message || 'Failed to save broker credentials')
         }
@@ -138,7 +129,7 @@ export default function BrokerSelect() {
       // Connect to broker callback
       window.location.href = `/${targetBroker}/callback`
     } catch (err: any) {
-      setError(err.message || 'Failed to authenticate broker')
+      setError(err?.response?.data?.message || err.message || 'Failed to authenticate broker')
       setIsSubmitting(false)
     }
   }
