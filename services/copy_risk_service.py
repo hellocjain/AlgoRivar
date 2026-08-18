@@ -566,7 +566,7 @@ def dispatch_morning_telegram_report(report: Dict[str, Any]):
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             msg = (
-                f"🌅 <b>OpenAlgo 08:30 AM Pre-Market Readiness Report</b>\n"
+                f"🌅 <b>AlgoRivar 08:30 AM Pre-Market Readiness Report</b>\n"
                 f"━━━━━━━━━━━━━━━━━━━━━\n"
                 f"👥 <b>Total Accounts:</b> {total}\n"
                 f"🟢 <b>Ready & Logged In:</b> <b>{ready}</b>\n"

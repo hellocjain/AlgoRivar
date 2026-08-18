@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  algorivar-postgres:
+    image: postgres:16-alpine
+    container_name: algorivar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-algorivar}
+      POSTGRES_USER: ${POSTGRES_USER:-algorivar_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-algorivar_secret_pass_2026}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-algorivar_user} -d ${POSTGRES_DB:-algorivar}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - algorivar-net
+
+  algorivar-redis:
+    image: redis:7-alpine
+    container_name: algorivar-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-algorivar_redis_pass_2026}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-algorivar_redis_pass_2026}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - algorivar-net
+
+  algorivar-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: algorivar-app
+    restart: unless-stopped
+    depends_on:
+      algorivar-postgres:
+        condition: service_healthy
+      algorivar-redis:
+        condition: service_healthy
+    environment:
+      - FLASK_ENV=production
+      - HOST=0.0.0.0
+      - PORT=5001
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-algorivar_user}:${POSTGRES_PASSWORD:-algorivar_secret_pass_2026}@algorivar-postgres:5432/${POSTGRES_DB:-algorivar}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-algorivar_redis_pass_2026}@algorivar-redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-algorivar_default_super_secret_jwt_key_2026}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - app_db_data:/app/db
+      - app_log_data:/app/logs
+    networks:
+      - algorivar-net
+
+  algorivar-nginx:
+    image: nginx:alpine
+    container_name: algorivar-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "5001:5001"
+      - "8765:8765"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - algorivar-app
+    networks:
+      - algorivar-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_db_data:
+  app_log_data:
+
+networks:
+  algorivar-net:
+    driver: bridge

@@ -1,368 +1,365 @@
 import {
+  AlertTriangle,
   ArrowRight,
-  BookOpen,
-  Bot,
-  ClipboardList,
-  Download,
-  GraduationCap,
-  HelpCircle,
-  LogIn,
-  Menu,
-  MessageCircle,
+  CheckCircle2,
+  Clock,
   Moon,
+  Shield,
+  Sliders,
   Sparkles,
   Sun,
-  Wand2,
+  TrendingUp,
+  UserCheck,
+  Users,
+  Zap,
 } from 'lucide-react'
-import { useState } from 'react'
 import { Link } from 'react-router'
 import { Footer } from '@/components/layout/Footer'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
-import { tools } from '@/lib/tools'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { useThemeStore } from '@/stores/themeStore'
+import { usePageTitle } from '@/hooks/usePageTitle'
 
-const integrations = [
-  'Amibroker',
-  'TradingView',
-  'GoCharting',
-  'Python',
-  'MetaTrader',
-  'N8N',
-  'Java',
-  'Go',
-  '.NET',
-  'Node.js',
-  'Rust',
-  'ChartInk',
-  'Excel',
-  'Google Sheets',
-  'OpenClaw',
-  'Telegram',
+const stats = [
+  { label: 'Parallel Fan-Out Latency', value: '< 30ms', desc: 'Sub-30ms non-blocking threadpool router' },
+  { label: 'Concurrent Child Accounts', value: '50+', desc: 'Parallel multi-account execution' },
+  { label: 'Signal Deduplication', value: '3-Sec', desc: 'SHA-256 time-bucketed idempotency guard' },
+  { label: 'Dynamic Risk Engine', value: '4 Grades', desc: 'Algomirror Grade A/B/C/D Margin Sizing' },
+]
+
+const features = [
+  {
+    icon: Users,
+    title: 'Institutional Multi-Account Copy Trading',
+    desc: 'Fan out TradingView, Chartink, and Python signals across 50+ child accounts concurrently with custom multipliers and capital allocations.',
+    badge: 'Core Engine',
+  },
+  {
+    icon: Sliders,
+    title: 'Algomirror Dynamic Margin Risk Sizing',
+    desc: 'Sizes child orders automatically based on live AC Agarwal RMS margin and Trade Quality grades (Grade A: 70%, Grade B: 50%, Grade C: 30%, Grade D: 20% cash).',
+    badge: 'Quant Sizing',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Supertrend Multi-Leg Trailing Stops',
+    desc: 'Calculates Supertrend on combined multi-leg option premium spreads (Straddles/Strangles) with exact Pine Script and TradingView parity.',
+    badge: 'Trailing Stop',
+  },
+  {
+    icon: Shield,
+    title: 'Exchange Freeze Quantity Slicing',
+    desc: 'Automatically slices large orders exceeding MCX commodity caps (10,000 units on Crude/Gold) or NSE/BSE F&O limits into exchange-compliant child orders.',
+    badge: 'Compliance',
+  },
+  {
+    icon: Clock,
+    title: '08:30 AM Pre-Flight Health Drill',
+    desc: '1-Click pre-market readiness testing verifying active XTS tokens and margin balances across all client accounts with Telegram status reporting.',
+    badge: 'Operations',
+  },
+  {
+    icon: AlertTriangle,
+    title: '1-Click Emergency Desk Square-Off',
+    desc: 'Instant kill-switch allowing desk managers to flatten all open positions and cancel all pending orders across every client account simultaneously.',
+    badge: 'Risk Control',
+  },
+]
+
+const sampleStrategies = [
+  {
+    tag: 'NIFTY_TREND_PRO',
+    name: 'Nifty Quantitative Trend Follower',
+    segment: 'NSEFO',
+    tf: '15m',
+    symbol: 'NIFTY',
+    pnl: '+18.4%',
+    desc: 'Multi-indicator trend capture strategy with dynamic position reconciliation and supertrend trailing stop.',
+  },
+  {
+    tag: 'BANKNIFTY_STRADDLE',
+    name: 'BankNifty Intraday Premium Seller',
+    segment: 'NSEFO',
+    tf: '5m',
+    symbol: 'BANKNIFTY',
+    pnl: '+24.1%',
+    desc: 'Delta-neutral option selling with Grade B 50% margin allocation and automated leg adjustment.',
+  },
+  {
+    tag: 'CRUDE_MOMENTUM',
+    name: 'MCX Crude Oil Momentum Breakout',
+    segment: 'MCXFO',
+    tf: '10s',
+    symbol: 'CRUDEOIL',
+    pnl: '+31.8%',
+    desc: 'High-frequency breakout strategy with automatic continuous contract resolution and 10k freeze slicing.',
+  },
 ]
 
 export default function Home() {
+  usePageTitle()
   const { mode, toggleMode } = useThemeStore()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  const navLinks = [
-    { href: '/', label: 'Home', internal: true },
-    { href: '/faq', label: 'FAQ', internal: true },
-    { href: 'https://www.openalgo.in/learn', label: 'Varsity', internal: false },
-    { href: 'https://openalgo.in/discord', label: 'Community', internal: false },
-    { href: 'https://openalgo.in/roadmap', label: 'Roadmap', internal: false },
-    { href: 'https://docs.openalgo.in', label: 'Docs', internal: false },
-  ]
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Navbar */}
-      <header className="sticky top-0 z-30 h-16 w-full border-b bg-background/90 backdrop-blur">
-        <nav className="container mx-auto px-4 flex h-full items-center justify-between">
+    <div className="min-h-screen bg-background flex flex-col selection:bg-blue-500/20">
+      {/* SaaS Navigation Bar */}
+      <header className="sticky top-0 z-40 h-16 w-full border-b bg-background/90 backdrop-blur border-border/50">
+        <nav className="container mx-auto px-4 sm:px-6 flex h-full items-center justify-between max-w-7xl">
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            {/* Mobile menu button */}
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild className="lg:hidden">
-                <Button variant="ghost" size="icon" aria-label="Open menu">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-80">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Navigation Menu</SheetTitle>
-                  <SheetDescription>Main navigation and quick access links</SheetDescription>
-                </SheetHeader>
-                <div className="flex items-center gap-2 mb-8">
-                  <img src="/logo.png" alt="AlgoRivar" className="h-8 w-8" />
-                  <span className="text-xl font-semibold">AlgoRivar</span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Link
-                    to="/"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                      />
-                    </svg>
-                    Home
-                  </Link>
-                  <Link
-                    to="/faq"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <HelpCircle className="h-5 w-5" />
-                    FAQ
-                  </Link>
-                  <Link
-                    to="/download"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Download className="h-5 w-5" />
-                    Download
-                  </Link>
-                  <a
-                    href="https://www.openalgo.in/learn"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent"
-                  >
-                    <GraduationCap className="h-5 w-5" />
-                    Varsity
-                  </a>
-                  <a
-                    href="https://openalgo.in/discord"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent"
-                  >
-                    <MessageCircle className="h-5 w-5" />
-                    Community
-                  </a>
-                  <a
-                    href="https://openalgo.in/roadmap"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent"
-                  >
-                    <ClipboardList className="h-5 w-5" />
-                    Roadmap
-                  </a>
-                  <a
-                    href="https://docs.openalgo.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 rounded-md hover:bg-accent"
-                  >
-                    <BookOpen className="h-5 w-5" />
-                    Docs
-                  </a>
-                </div>
-              </SheetContent>
-            </Sheet>
+          <Link to="/" className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-500 shadow-sm">
+              <Zap className="h-5 w-5 fill-current" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-slate-100 bg-clip-text text-transparent">
+                AlgoRivar
+              </span>
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider -mt-1 hidden sm:inline">
+                Algo Trading Made Easy
+              </span>
+            </div>
+          </Link>
 
-            <Link to="/" className="flex items-center gap-2">
-              <img src="/logo.png" alt="AlgoRivar" className="h-8 w-8" />
-              <span className="text-xl font-bold hidden sm:inline">AlgoRivar</span>
+          {/* Center Links */}
+          <div className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
+            <Link to="/copytrading" className="hover:text-foreground transition-colors flex items-center gap-1.5">
+              <Users className="h-4 w-4 text-blue-400" />
+              Master Desk
+            </Link>
+            <Link to="/portal" className="hover:text-foreground transition-colors flex items-center gap-1.5">
+              <UserCheck className="h-4 w-4 text-emerald-400" />
+              Client Portal
+            </Link>
+            <Link to="/strategy" className="hover:text-foreground transition-colors">
+              Strategies
+            </Link>
+            <Link to="/orderbook" className="hover:text-foreground transition-colors">
+              Orderbook
+            </Link>
+            <Link to="/tools" className="hover:text-foreground transition-colors">
+              Tools
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link) =>
-              link.internal ? (
-                <Link key={link.href} to={link.href}>
-                  <Button variant="ghost" size="sm">
-                    {link.label}
-                  </Button>
-                </Link>
-              ) : (
-                <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="sm">
-                    {link.label}
-                  </Button>
-                </a>
-              )
-            )}
-          </div>
-
-          {/* Right side */}
-          <div className="flex items-center gap-2">
-            <Link to="/download">
-              <Button size="sm">Download</Button>
-            </Link>
+          {/* Right Actions */}
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleMode}
-              aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              className="h-9 w-9"
+              aria-label="Toggle theme"
             >
-              {mode === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {mode === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-700" />}
             </Button>
+            <Link to="/portal">
+              <Button variant="outline" size="sm" className="hidden sm:inline-flex text-xs h-8">
+                Client Login
+              </Button>
+            </Link>
+            <Link to="/copytrading">
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 shadow-sm">
+                Launch Desk
+              </Button>
+            </Link>
           </div>
         </nav>
       </header>
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="container mx-auto px-4 pt-20 pb-16 sm:pt-28 sm:pb-20">
-          <div className="text-center max-w-4xl mx-auto">
-            <Link
-              to="/tools"
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] mb-8 shadow-sm transition-colors hover:border-emerald-500/40 hover:bg-card"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px] shadow-emerald-400/60" />
-              <span className="text-amber-700 dark:text-amber-500">New in V2</span>
-              <span className="text-muted-foreground">
-                - {tools.length} Tool Options &amp; Portfolio Analytics Suite
+        <section className="relative overflow-hidden pt-16 pb-20 sm:pt-24 sm:pb-28 border-b border-border/40 bg-gradient-to-b from-blue-950/10 via-background to-background">
+          <div className="container mx-auto px-4 sm:px-6 max-w-7xl relative z-10 text-center space-y-8">
+            {/* Top Pill */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-950/30 px-4 py-1.5 text-xs font-semibold text-blue-300 shadow-sm backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px] shadow-emerald-400/80" />
+              <span>Turnkey Multi-Account Copy-Trading SaaS</span>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-slate-300">AC Agarwal (Symphony XTS) Edition</span>
+            </div>
+
+            {/* Main Headline */}
+            <div className="max-w-4xl mx-auto space-y-4">
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight">
+                Algo Trading{' '}
+                <span className="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
+                  Made Easy
+                </span>
+              </h1>
+              <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto font-normal leading-relaxed">
+                Institutional algorithmic execution, multi-client copy trading, Algomirror dynamic margin sizing, and sub-30ms webhook replication for modern trading desks.
+              </p>
+            </div>
+
+            {/* Dual Action CTAs */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+              <Link to="/copytrading" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 h-12 shadow-lg shadow-blue-600/20 flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Launch Master Desk Hub
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link to="/portal" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto font-semibold px-8 h-12 border-border/80 flex items-center gap-2 hover:bg-accent">
+                  <UserCheck className="h-5 w-5 text-emerald-400" />
+                  Retail Client Self-Service Portal
+                </Button>
+              </Link>
+            </div>
+
+            {/* Quick Badges */}
+            <div className="flex flex-wrap items-center justify-center gap-6 pt-4 text-xs font-mono text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" /> Sub-30ms Parallel Fan-Out
               </span>
-              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-            </Link>
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-              <span className="block text-foreground">Your Personal</span>
-              <span className="block text-primary">Algo Trading Platform</span>
-            </h1>
-            <p className="text-lg sm:text-xl font-semibold mb-6 text-primary">
-              Community Driven Algo Trading Platform
-            </p>
-            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
-              Test and Execute your Trading ideas, Connect your favorite Trading Platforms, AI
-              Driven Strategy Development, with a built-in Options &amp; Portfolio Analytics Suite -
-              option chains and Greeks, portfolio and SIP backtesting - across 30+ Brokers.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" asChild>
-                <Link to="/login">
-                  <LogIn className="mr-2 h-5 w-5" />
-                  Login
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link to="/download">
-                  <Download className="mr-2 h-5 w-5" />
-                  Download
-                </Link>
-              </Button>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 3-Second SHA-256 Deduplication
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" /> 100% Automated 401 Session Recovery
+              </span>
             </div>
           </div>
         </section>
 
-        {/* Integrates With */}
-        <section className="container mx-auto px-4 py-12 sm:py-16">
-          <p className="text-center text-xs sm:text-sm font-semibold uppercase tracking-[0.25em] text-amber-700 dark:text-amber-500 mb-6">
-            Integrates With
-          </p>
-          <div className="flex flex-wrap justify-center gap-2 sm:gap-3 max-w-4xl mx-auto">
-            {integrations.map((name) => (
-              <span
-                key={name}
-                className="rounded-full border border-border bg-card/60 px-4 py-2 text-sm text-foreground/90 shadow-sm"
-              >
-                {name}
-              </span>
-            ))}
+        {/* Metrics Strip */}
+        <section className="border-b border-border/40 bg-card/40 py-10">
+          <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {stats.map((s, idx) => (
+                <div key={idx} className="p-4 rounded-xl border border-border/50 bg-card/60 backdrop-blur space-y-1">
+                  <div className="text-3xl sm:text-4xl font-extrabold font-mono text-blue-400">{s.value}</div>
+                  <div className="text-sm font-semibold">{s.label}</div>
+                  <div className="text-xs text-muted-foreground">{s.desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Trade & Research With Your AI */}
-        <section className="container mx-auto px-4 py-16 sm:py-20">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 mb-6">
-              <Sparkles className="h-3.5 w-3.5" />
-              Made for AI
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-4">
-              Trade & Research With Your AI
-            </h2>
-            <p className="text-base sm:text-lg text-muted-foreground">
-              Two simple ways to bring AI into your trading - talk to your account like a trading
-              desk, or give your AI a toolkit to chart, scan, and backtest for you.
-            </p>
+        {/* Feature Grid */}
+        <section className="py-20 border-b border-border/40">
+          <div className="container mx-auto px-4 sm:px-6 max-w-7xl space-y-12">
+            <div className="text-center max-w-2xl mx-auto space-y-3">
+              <Badge variant="outline" className="text-blue-400 border-blue-500/40 bg-blue-950/20">
+                Institutional Capabilities
+              </Badge>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                Engineered for High-Frequency Reliability
+              </h2>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Consolidating the gold standard components from Marketcalls OpenAlgo &amp; Algomirror into a unified SaaS experience.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {features.map((f, idx) => {
+                const Icon = f.icon
+                return (
+                  <Card key={idx} className="border-border/60 bg-card/60 hover:border-blue-500/40 transition-all shadow-sm flex flex-col justify-between">
+                    <CardHeader className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="p-2.5 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-400">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {f.badge}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-lg">{f.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-xs sm:text-sm leading-relaxed">
+                        {f.desc}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
           </div>
+        </section>
 
-          <div className="grid gap-6 md:grid-cols-2 max-w-6xl mx-auto">
-            {/* AlgoRivar MCP card */}
-            <Card className="group transition-colors hover:border-purple-400/40">
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
-                    <Bot className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold flex items-center gap-2">
-                      AlgoRivar MCP
-                      <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
-                    </h3>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">
-                      Trade by Chatting
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Connect your AlgoRivar account to Claude, Cursor, Windsurf, or ChatGPT. Place
-                  orders, check positions, and pull live prices by simply asking - no dashboards, no
-                  clicks.
+        {/* Strategy Marketplace Showcase */}
+        <section className="py-20 border-b border-border/40 bg-gradient-to-b from-background via-blue-950/5 to-background">
+          <div className="container mx-auto px-4 sm:px-6 max-w-7xl space-y-12">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+              <div>
+                <Badge variant="outline" className="text-emerald-400 border-emerald-500/40 bg-emerald-950/20 mb-2">
+                  Live Strategies
+                </Badge>
+                <h2 className="text-3xl font-bold tracking-tight">Verified Strategy Marketplace</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Replicate institutional quant signals directly to subscribed client accounts
                 </p>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {[
-                    '25+ built-in actions',
-                    'Claude / Cursor / Windsurf / ChatGPT',
-                    'Runs on your computer',
-                  ].map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-md bg-muted px-2.5 py-1 text-xs text-neutral-600 dark:text-neutral-400"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+              <Link to="/portal">
+                <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                  Browse All Strategies <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
 
-            {/* AlgoRivar Skills card */}
-            <Card className="group transition-colors hover:border-emerald-400/40">
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
-                    <Wand2 className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold flex items-center gap-2">
-                      AlgoRivar Skills
-                      <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
-                    </h3>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-1">
-                      Chart, Scan & Backtest
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Ready-made trading abilities you can drop into your AI assistant - charts,
-                  scanners, custom indicators, and backtests with real brokerage costs. Works with
-                  40+ AI apps.
-                </p>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {['100+ indicators', '12 ready-made strategies', 'India / US / Crypto'].map(
-                    (tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-md bg-muted px-2.5 py-1 text-xs text-neutral-600 dark:text-neutral-400"
-                      >
-                        {tag}
-                      </span>
-                    )
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {sampleStrategies.map((strat, idx) => (
+                <Card key={idx} className="border-border/60 bg-card/80 shadow flex flex-col justify-between">
+                  <CardHeader className="p-5 pb-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs font-mono text-blue-400 bg-blue-950/30 border-blue-500/40">
+                        {strat.segment} • {strat.tf}
+                      </Badge>
+                      <span className="text-xs font-mono font-bold text-emerald-400">{strat.pnl} Est. ROI</span>
+                    </div>
+                    <CardTitle className="text-base mt-2">{strat.name}</CardTitle>
+                    <CardDescription className="text-xs leading-relaxed">{strat.desc}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-5 pt-0 border-t border-border/40 mt-4 flex items-center justify-between">
+                    <span className="text-xs font-mono text-muted-foreground">{strat.tag}</span>
+                    <Link to="/portal">
+                      <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8">
+                        Subscribe
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Free & Open Source Tier Banner */}
+        <section className="py-16">
+          <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
+            <div className="rounded-2xl border border-blue-800/40 bg-gradient-to-r from-blue-950/40 via-indigo-950/30 to-slate-900/40 p-8 sm:p-12 text-center space-y-6 shadow-xl backdrop-blur">
+              <div className="inline-flex p-3 rounded-full bg-blue-600/20 text-blue-400 border border-blue-500/30">
+                <Sparkles className="h-8 w-8" />
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white">
+                100% Free &amp; Open SaaS Trading Architecture
+              </h2>
+              <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
+                Deploy AlgoRivar on your own VPS or local server with zero license fees, zero broker markups, and full ownership of your trading API secrets.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
+                <Link to="/copytrading">
+                  <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 h-12">
+                    Open Master Desk Hub
+                  </Button>
+                </Link>
+                <Link to="/portal">
+                  <Button size="lg" variant="secondary" className="font-semibold px-8 h-12">
+                    Open Retail Client Portal
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
+      {/* Rebranded Footer */}
       <Footer />
     </div>
   )

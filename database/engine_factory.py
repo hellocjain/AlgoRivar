@@ -44,16 +44,39 @@ def create_db_engine(database_url=None):
         ``check_same_thread=False``; other backends use a QueuePool.
     """
     database_url = database_url or os.getenv("DATABASE_URL")
+    if database_url and database_url.startswith("postgres://"):
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-    if database_url and "sqlite" in database_url:
+    if not database_url or "sqlite" in database_url:
         # SQLite: NullPool so each checkout creates a fresh connection that is
         # closed immediately. Session cleanup is handled by app.py
         # teardown_appcontext. StaticPool must NOT be used (see module docstring).
+        sqlite_url = database_url or "sqlite:///db/openalgo.db"
         return create_engine(
-            database_url,
+            sqlite_url,
             poolclass=NullPool,
             connect_args={"check_same_thread": False},
         )
 
     # Non-SQLite backends (e.g. PostgreSQL): use a real connection pool.
-    return create_engine(database_url, pool_size=50, max_overflow=100, pool_timeout=10)
+    try:
+        return create_engine(
+            database_url,
+            pool_size=50,
+            max_overflow=100,
+            pool_timeout=15,
+            pool_recycle=1800,
+            pool_pre_ping=True,
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Failed to initialize database driver for {database_url} ({e}). Falling back to SQLite NullPool."
+        )
+        return create_engine(
+            "sqlite:///db/openalgo.db",
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False},
+        )
+
+

@@ -705,11 +705,53 @@ def execute_order_for_single_account(
     }
 
 
+def send_telegram_trade_alert(summary: Dict[str, Any]):
+    """Asynchronously dispatch formatted HTML trade execution card to Telegram."""
+    def _send():
+        try:
+            bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+            chat_id = os.getenv("TELEGRAM_CHAT_ID")
+            if not bot_token or not chat_id:
+                return
+
+            action = str(summary.get("action", "BUY")).upper()
+            action_emoji = "🟢" if action == "BUY" else "🔴"
+            symbol = summary.get("symbol", "")
+            exchange = summary.get("exchange", "NSE")
+            strategy = summary.get("strategy", "Manual")
+            successful = summary.get("successful_orders", 0)
+            failed = summary.get("failed_orders", 0)
+            total = summary.get("total_accounts", 0)
+            lat = summary.get("total_latency_ms", 0.0)
+
+            msg = (
+                f"{action_emoji} <b>AlgoRivar Copy Signal Executed</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━━\n"
+                f"📊 <b>Strategy:</b> <code>{strategy}</code>\n"
+                f"🎯 <b>Action:</b> <b>{action}</b> {symbol} ({exchange})\n"
+                f"👥 <b>Fills:</b> <b>{successful}/{total} Accounts</b> ({lat:.1f}ms)\n"
+            )
+            if failed > 0:
+                msg += f"⚠️ <b>Failed:</b> {failed} Accounts\n"
+            msg += (
+                f"🕒 <b>Time:</b> {datetime.now().strftime('%H:%M:%S')}\n"
+                f"━━━━━━━━━━━━━━━━━━━━━"
+            )
+
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            requests.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}, timeout=4)
+        except Exception as e:
+            logger.debug(f"[Telegram Alert] Notice: {e}")
+
+    threading.Thread(target=_send, daemon=True).start()
+
+
 def broadcast_copy_order(
     order_data: Dict[str, Any],
     master_order_id: Optional[str] = None,
     specific_account_ids: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
+
     """
     Broadcast a trade signal to all mapped child accounts in parallel using ThreadPoolExecutor.
     Supports dynamic strategy routing, direct client targeting, and duplicate signal protection.
