@@ -18,12 +18,30 @@ echo -e "${CYAN}   🚀 AlgoRivar: Turnkey SaaS Docker Installer        ${NC}"
 echo -e "${CYAN}       \"Algo Trading Made Easy\"                      ${NC}"
 echo -e "${CYAN}======================================================${NC}"
 
+# Optimize Docker Build Engine
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
+# Check Memory & Auto-Provision Swap for Low-RAM VPS (< 2GB) to Prevent OOM
+TOTAL_RAM_MB=$(free -m | awk '/^Mem:/{print $2}')
+if [ -n "$TOTAL_RAM_MB" ] && [ "$TOTAL_RAM_MB" -lt 2000 ] && [ ! -f /swapfile ]; then
+    echo -e "${YELLOW}Low RAM detected (${TOTAL_RAM_MB}MB). Creating 2GB Swap file for smooth operation...${NC}"
+    fallocate -l 2G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=2048
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile || true
+    if ! grep -q '/swapfile' /etc/fstab; then
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    fi
+    echo -e "${GREEN}2GB Swap successfully enabled.${NC}"
+fi
+
 # Check Docker & Docker Compose
 if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}Docker not found. Installing Docker...${NC}"
     curl -fsSL https://get.docker.com -o get-docker.sh
     sh get-docker.sh
-    rm get-docker.sh
+    rm -f get-docker.sh
 fi
 
 if ! docker compose version &> /dev/null; then
