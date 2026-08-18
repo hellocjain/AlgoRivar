@@ -1147,7 +1147,7 @@ def load_and_check_env_variables() -> None:
 
     # Check if the .env file exists and load it
     if os.path.exists(env_path):
-        load_dotenv(dotenv_path=env_path, override=True)
+        load_dotenv(dotenv_path=env_path, override=False)
         _generate_keys_on_first_run(env_path)
         _ensure_fernet_salt(env_path)
     else:

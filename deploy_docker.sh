@@ -83,11 +83,14 @@ fi
 
 # Ensure existing .env files include acagarwal in VALID_BROKERS and valid REDIRECT_URL
 if [ -f .env ]; then
+    sed -i.bak "s/FLASK_HOST_IP='127.0.0.1'/FLASK_HOST_IP='0.0.0.0'/g" .env 2>/dev/null || true
+    sed -i.bak "s/FLASK_PORT='5000'/FLASK_PORT='5001'/g" .env 2>/dev/null || true
+    sed -i.bak "s|HOST_SERVER = 'http://127.0.0.1:5000'|HOST_SERVER = 'http://0.0.0.0:5001'|g" .env 2>/dev/null || true
     if ! grep -q "acagarwal" .env 2>/dev/null; then
         sed -i.bak "s/VALID_BROKERS = '/VALID_BROKERS = 'acagarwal,/g" .env 2>/dev/null || true
         sed -i.bak "s|<broker>|acagarwal|g" .env 2>/dev/null || true
-        rm -f .env.bak
     fi
+    rm -f .env.bak
 fi
 
 # Clean any old or renamed containers to prevent name conflicts
