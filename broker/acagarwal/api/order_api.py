@@ -172,13 +172,20 @@ def place_order_api(data, auth):
                     logger.warning(f"[AC Agarwal] Failed to compute synthetic limit price from quotes: {quote_err}")
 
             if ltp > 0:
+                eff_tick = float(tick_size) if tick_size and float(tick_size) > 0 else (1.0 if "MCX" in str(exchange) else 0.05)
                 buffer_pct = 0.005  # 0.5% marketable slippage buffer
                 raw_price = ltp * (1 + buffer_pct) if action == "BUY" else ltp * (1 - buffer_pct)
-                synthetic_price = round(round(raw_price / tick_size) * tick_size, 2)
+                if eff_tick >= 1.0:
+                    synthetic_price = int(round(raw_price / eff_tick) * eff_tick)
+                else:
+                    synthetic_price = round(round(raw_price / eff_tick) * eff_tick, 2)
                 data["price"] = str(synthetic_price)
                 data["pricetype"] = "LIMIT"
-                logger.info(f"[AC Agarwal Safeguard] Converted MARKET -> Synthetic LIMIT price {synthetic_price} (from base price {ltp}) for {symbol}")
+                logger.info(f"[AC Agarwal Safeguard] Converted MARKET -> Synthetic LIMIT price {synthetic_price} (Tick: {eff_tick}) for {symbol}")
             elif incoming_price > 0:
+                eff_tick = float(tick_size) if tick_size and float(tick_size) > 0 else (1.0 if "MCX" in str(exchange) else 0.05)
+                if eff_tick >= 1.0:
+                    data["price"] = str(int(round(incoming_price)))
                 data["pricetype"] = "LIMIT"
 
         token = get_token(symbol, exchange) if symbol and exchange else None
