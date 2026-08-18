@@ -156,23 +156,30 @@ def place_order_api(data, auth):
             return fake_resp, {"error": error_msg}, None
 
         # Quirk #4: Synthetic Marketable Limit Order for MARKET orders
-        if pricetype == "MARKET":
-            try:
-                bd = BrokerData(auth_token=auth)
-                quote = bd.get_quotes(symbol, exchange)
-                ltp = 0.0
-                if isinstance(quote, dict) and "result" in quote:
-                    ltp = float(quote["result"].get("LastTradedPrice", 0.0))
+        # AC Agarwal requires LIMIT orders with a non-zero price for all Algo-tagged orders.
+        incoming_price = float(data.get("price") or 0.0)
+        if pricetype == "MARKET" or incoming_price <= 0.0:
+            ltp = incoming_price
+            if ltp <= 0.0:
+                try:
+                    bd = BrokerData(auth_token=auth)
+                    quote = bd.get_quotes(symbol, exchange)
+                    if isinstance(quote, dict) and "result" in quote:
+                        res_obj = quote["result"]
+                        if isinstance(res_obj, dict):
+                            ltp = float(res_obj.get("LastTradedPrice", 0.0))
+                except Exception as quote_err:
+                    logger.warning(f"[AC Agarwal] Failed to compute synthetic limit price from quotes: {quote_err}")
 
-                if ltp > 0:
-                    buffer_pct = 0.005  # 0.5% slippage buffer
-                    raw_price = ltp * (1 + buffer_pct) if action == "BUY" else ltp * (1 - buffer_pct)
-                    synthetic_price = round(round(raw_price / tick_size) * tick_size, 2)
-                    data["price"] = str(synthetic_price)
-                    data["pricetype"] = "LIMIT"
-                    logger.info(f"[AC Agarwal Safeguard] Computed synthetic limit price {synthetic_price} from LTP {ltp} for {symbol}")
-            except Exception as quote_err:
-                logger.warning(f"[AC Agarwal] Failed to compute synthetic limit price: {quote_err}")
+            if ltp > 0:
+                buffer_pct = 0.005  # 0.5% marketable slippage buffer
+                raw_price = ltp * (1 + buffer_pct) if action == "BUY" else ltp * (1 - buffer_pct)
+                synthetic_price = round(round(raw_price / tick_size) * tick_size, 2)
+                data["price"] = str(synthetic_price)
+                data["pricetype"] = "LIMIT"
+                logger.info(f"[AC Agarwal Safeguard] Converted MARKET -> Synthetic LIMIT price {synthetic_price} (from base price {ltp}) for {symbol}")
+            elif incoming_price > 0:
+                data["pricetype"] = "LIMIT"
 
         token = get_token(symbol, exchange) if symbol and exchange else None
         if not token and symbol:

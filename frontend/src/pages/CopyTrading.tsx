@@ -299,17 +299,7 @@ export default function CopyTrading() {
 
   const generateWebhookPayloadString = () => {
     if (jsonConfig.mode === 'strategy') {
-      let rawJson = `{\n  "strategy": "${jsonConfig.strategy_tag}",\n  "symbol": "${jsonConfig.symbol || '{{ticker}}'}",\n  "exchange": "${jsonConfig.exchange}",\n  "action": "${jsonConfig.action || '{{strategy.order.action}}'}",\n  "quantity": ${jsonConfig.quantity || '{{strategy.order.contracts}}'}`
-      if (jsonConfig.position_size) {
-        rawJson += `,\n  "position_size": {{strategy.position_size}}`
-      }
-      if (jsonConfig.price && jsonConfig.pricetype !== 'MARKET') {
-        rawJson += `,\n  "price": ${jsonConfig.price || '{{close}}'}`
-      }
-      if (jsonConfig.trigger_price && (jsonConfig.pricetype === 'SL-M' || jsonConfig.pricetype === 'SL-L')) {
-        rawJson += `,\n  "trigger_price": ${jsonConfig.trigger_price}`
-      }
-      rawJson += `,\n  "pricetype": "${jsonConfig.pricetype}",\n  "product": "${jsonConfig.product}"\n}`
+      let rawJson = `{\n  "strategy_tag": "${jsonConfig.strategy_tag}",\n  "action": "${jsonConfig.action || '{{strategy.order.action}}'}",\n  "position_size": "${jsonConfig.position_size || '{{strategy.position_size}}'}",\n  "symbol": "${jsonConfig.symbol || '{{ticker}}'}",\n  "exchange": "${jsonConfig.exchange}",\n  "price": "{{close}}",\n  "product": "${jsonConfig.product}",\n  "pricetype": "${jsonConfig.pricetype}"\n}`
       return rawJson
     } else if (jsonConfig.mode === 'direct_client') {
       const obj: any = {
