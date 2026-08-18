@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router'
+import { Navigate, Outlet, useLocation } from 'react-router'
 import { SocketProvider } from '@/components/socket/SocketProvider'
 import { useAuthStore } from '@/stores/authStore'
 import { Footer } from './Footer'
@@ -7,15 +7,29 @@ import { Navbar } from './Navbar'
 
 export function Layout() {
   const { isAuthenticated, user } = useAuthStore()
+  const location = useLocation()
 
   // AuthSync has already synced Flask session with Zustand store
-  // So we just need to check the Zustand store state
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
   }
 
-  // If logged in but no broker selected, redirect to broker selection
-  if (!user?.broker) {
+  // Configuration and SaaS management pages that are allowed without active broker connection
+  const allowedWithoutBroker = [
+    '/profile',
+    '/copytrading',
+    '/portal',
+    '/retail',
+    '/broker',
+    '/apikey',
+    '/setup',
+  ]
+  const isAllowedPath = allowedWithoutBroker.some((path) =>
+    location.pathname.startsWith(path)
+  )
+
+  // If logged in but no broker selected, redirect to broker selection unless on allowed config page
+  if (!user?.broker && !isAllowedPath) {
     return <Navigate to="/broker" replace />
   }
 

@@ -1,8 +1,10 @@
-import { BookOpen, ExternalLink, Info, Loader2 } from 'lucide-react'
+import { BookOpen, ExternalLink, Key, Loader2, Settings, ShieldCheck, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Link } from 'react-router'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -54,40 +56,22 @@ const allBrokers = [
   { id: 'zerodha', name: 'Zerodha', authType: 'oauth' },
 ] as const
 
-interface BrokerConfig {
-  broker_name: string
-  broker_api_key: string
-  redirect_url: string
-}
-
-// Helper function to get Flattrade API key
-function getFlattradeApiKey(fullKey: string): string {
-  if (!fullKey) return ''
-  const parts = fullKey.split(':::')
-  return parts.length > 1 ? parts[1] : fullKey
-}
-
-// Generate random state for OAuth
-function generateRandomState(): string {
-  const length = 16
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-  let result = ''
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return result
-}
-
 export default function BrokerSelect() {
   const { user } = useAuthStore()
-  const [selectedBroker, setSelectedBroker] = useState<string>('')
+  const [selectedBroker, setSelectedBroker] = useState<string>('acagarwal')
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [brokerConfig, setBrokerConfig] = useState<BrokerConfig | null>(null)
+
+  // Direct Frontend API Key entry state
+  const [apiKey, setApiKey] = useState('')
+  const [apiSecret, setApiSecret] = useState('')
+  const [apiKeyMarket, setApiKeyMarket] = useState('')
+  const [apiSecretMarket, setApiSecretMarket] = useState('')
+  const [showConfig, setShowConfig] = useState(true)
 
   useEffect(() => {
-    // Fetch broker configuration
+    // Fetch broker configuration & current credentials
     const fetchBrokerConfig = async () => {
       try {
         const response = await fetch('/auth/broker-config', {
@@ -96,14 +80,22 @@ export default function BrokerSelect() {
         const data = await response.json()
 
         if (data.status === 'success') {
-          setBrokerConfig(data)
-          // Auto-select the configured broker
-          setSelectedBroker(data.broker_name)
-        } else {
-          setError(data.message || 'Failed to load broker configuration')
+          setSelectedBroker(data.broker_name || 'acagarwal')
+        }
+
+        // Fetch current masked credentials to check if configured
+        const credsRes = await fetch('/api/broker/credentials', {
+          credentials: 'include',
+        })
+        const credsData = await credsRes.json()
+        if (credsData.status === 'success' && credsData.data) {
+          if (credsData.data.broker_api_key_raw_length > 0) {
+            setShowConfig(false)
+          }
         }
       } catch {
-        setError('Failed to load broker configuration')
+        // Fallback to default
+        setSelectedBroker('acagarwal')
       } finally {
         setIsLoading(false)
       }
@@ -112,127 +104,43 @@ export default function BrokerSelect() {
     fetchBrokerConfig()
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (!selectedBroker) {
-      setError('Please select a broker')
-      return
-    }
-
-    if (!brokerConfig) {
-      setError('Broker configuration not loaded')
-      return
-    }
-
+    setError(null)
     setIsSubmitting(true)
-    let loginUrl = ''
 
-    const { broker_api_key, redirect_url } = brokerConfig
+    try {
+      const targetBroker = selectedBroker || 'acagarwal'
 
-    // Build login URL based on broker type (matching original broker.html logic)
-    switch (selectedBroker) {
-      case 'acagarwal':
-      case 'fivepaisa':
-      case 'fivepaisaxts':
-      case 'aliceblue':
-      case 'angel':
-      case 'mstock':
-      case 'indmoney':
-      case 'deltaexchange':
-      case 'jainamxts':
-      case 'dhan_sandbox':
-      case 'definedge':
-      case 'firstock':
-      case 'samco':
-      case 'motilal':
-      case 'nubra':
-      case 'groww':
-      case 'ibulls':
-      case 'iifl':
-      case 'kotak':
-      case 'rmoney':
-      case 'shoonya':
-      case 'tradejini':
-      case 'tradesmart':
-      case 'wisdom':
-      case 'zebu':
-        // Brokers using callback route (form-based or redirect-based)
-        loginUrl = `/${selectedBroker}/callback`
-        break
+      // If user entered or updated API credentials on the frontend, save them first
+      if (apiKey || apiSecret || apiKeyMarket || apiSecretMarket) {
+        const payload = {
+          broker_api_key: apiKey.trim(),
+          broker_api_secret: apiSecret.trim(),
+          broker_api_key_market: apiKeyMarket.trim(),
+          broker_api_secret_market: apiSecretMarket.trim(),
+          redirect_url: `http://${window.location.host}/${targetBroker}/callback`,
+        }
 
-      case 'iiflcapital':
-        // Route via backend callback endpoint to centralize URL generation and
-        // avoid provider-specific redirect parameter parsing differences.
-        loginUrl = '/iiflcapital/callback'
-        break
+        const saveRes = await fetch('/api/broker/credentials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        })
 
-      case 'dhan':
-        loginUrl = '/dhan/initiate-oauth'
-        break
-
-      case 'compositedge':
-        loginUrl = `https://xts.compositedge.com/interactive/thirdparty?appKey=${broker_api_key}&returnURL=${redirect_url}`
-        break
-
-      case 'flattrade': {
-        const flattradeApiKey = getFlattradeApiKey(broker_api_key)
-        loginUrl = `https://auth.flattrade.in/?app_key=${flattradeApiKey}`
-        break
+        const saveData = await saveRes.json()
+        if (saveData.status !== 'success') {
+          throw new Error(saveData.message || 'Failed to save broker credentials')
+        }
       }
 
-      case 'fyers':
-        loginUrl = `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${broker_api_key}&redirect_uri=${redirect_url}&response_type=code&state=2e9b44629ebb28226224d09db3ffb47c`
-        break
-
-      case 'upstox':
-        loginUrl = `https://api.upstox.com/v2/login/authorization/dialog?response_type=code&client_id=${broker_api_key}&redirect_uri=${redirect_url}`
-        break
-
-      case 'zerodha':
-        loginUrl = `https://kite.trade/connect/login?api_key=${broker_api_key}`
-        break
-
-      case 'arrow':
-        // Arrow hosted login; redirects back to /arrow/callback with request-token.
-        loginUrl = `https://app.arrow.trade/app/login?appID=${broker_api_key}`
-        break
-
-      case 'hdfcsecurities':
-        // HDFC Securities InvestRight hosted login (credentials + 2FA +
-        // consent); redirects back to the app's registered callback with a
-        // request token.
-        loginUrl = `https://developer.hdfcsec.com/oapi/v1/login?api_key=${broker_api_key}`
-        break
-
-      case 'hdfcsky':
-        // HDFC Sky hosted login (credentials + 2FA + consent); redirects back
-        // to the app's registered callback with a request token.
-        loginUrl = `https://developer.hdfcsky.com/oapi/v1/login?api_key=${broker_api_key}`
-        break
-
-      case 'paytm':
-        loginUrl = `https://login.paytmmoney.com/merchant-login?apiKey=${broker_api_key}&state={default}`
-        break
-
-      case 'pocketful': {
-        const state = generateRandomState()
-        localStorage.setItem('pocketful_oauth_state', state)
-        const scope = 'orders holdings'
-        loginUrl = `https://trade.pocketful.in/oauth2/auth?client_id=${broker_api_key}&redirect_uri=${redirect_url}&response_type=code&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`
-        break
-      }
-
-      default:
-        setError('Please select a broker')
-        setIsSubmitting(false)
-        return
+      // Connect to broker callback
+      window.location.href = `/${targetBroker}/callback`
+    } catch (err: any) {
+      setError(err.message || 'Failed to authenticate broker')
+      setIsSubmitting(false)
     }
-
-    // Use setTimeout to ensure state updates complete before navigation
-    setTimeout(() => {
-      window.location.href = loginUrl
-    }, 100)
   }
 
   if (isLoading) {
@@ -244,18 +152,18 @@ export default function BrokerSelect() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-8 px-4">
+    <div className="min-h-screen flex items-center justify-center py-8 px-4 bg-muted/20">
       <div className="container max-w-6xl">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-16">
           {/* Right side broker form - Shown first on mobile */}
-          <Card className="w-full max-w-md shadow-xl order-1 lg:order-2">
-            <CardHeader className="text-center">
-              <div className="flex justify-center mb-4">
-                <img src="/logo.png" alt="AlgoRivar" className="h-20 w-20" />
+          <Card className="w-full max-w-lg shadow-2xl border-primary/20 order-1 lg:order-2">
+            <CardHeader className="text-center pb-4">
+              <div className="flex justify-center mb-3">
+                <img src="/logo.png" alt="AlgoRivar" className="h-16 w-16" />
               </div>
-              <CardTitle className="text-2xl">Connect Your Trading Account</CardTitle>
+              <CardTitle className="text-2xl font-bold">Connect Trading Account</CardTitle>
               <CardDescription>
-                Welcome, <span className="font-medium">{user?.username}</span>!
+                Welcome, <span className="font-semibold text-foreground">{user?.username}</span>! Connect your broker to start live copy trading.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -265,10 +173,10 @@ export default function BrokerSelect() {
                 </Alert>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="broker-select" className="block text-center">
-                    Login with your Broker
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="broker-select" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Selected Broker
                   </Label>
                   <Select
                     value={selectedBroker}
@@ -279,67 +187,167 @@ export default function BrokerSelect() {
                       <SelectValue placeholder="Select a Broker" />
                     </SelectTrigger>
                     <SelectContent>
-                      {allBrokers
-                        .filter((broker) => broker.id === brokerConfig?.broker_name)
-                        .map((broker) => (
-                          <SelectItem key={broker.id} value={broker.id}>
-                            {broker.name}
-                          </SelectItem>
-                        ))}
+                      {allBrokers.map((broker) => (
+                        <SelectItem key={broker.id} value={broker.id}>
+                          {broker.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {(selectedBroker === 'zerodha' || selectedBroker === 'dhan') && (
-                  <Alert className="border-amber-500/50 bg-amber-500/10">
-                    <Info className="h-4 w-4 text-amber-500" />
-                    <AlertDescription className="text-amber-700 dark:text-amber-400">
-                      {selectedBroker === 'zerodha'
-                        ? 'Zerodha requires an active Kite Connect data subscription for market data access.'
-                        : 'Dhan requires an active Data API subscription for market data access.'}
-                    </AlertDescription>
-                  </Alert>
-                )}
+                {/* API Credentials Configuration Panel */}
+                <div className="rounded-lg border border-border bg-card/60 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <Key className="h-4 w-4 text-primary" />
+                      <span>{selectedBroker === 'acagarwal' ? 'AC Agarwal Symphony XTS Keys' : 'Broker API Credentials'}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-xs text-primary h-7 px-2"
+                      onClick={() => setShowConfig(!showConfig)}
+                    >
+                      {showConfig ? 'Hide Inputs' : 'Edit Credentials'}
+                    </Button>
+                  </div>
 
-                <Button type="submit" className="w-full" disabled={!selectedBroker || isSubmitting}>
+                  {showConfig ? (
+                    <div className="space-y-3 pt-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Interactive App Key (Trading)</Label>
+                        <Input
+                          placeholder="Enter XTS Interactive App Key"
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Interactive Secret Key</Label>
+                        <Input
+                          type="password"
+                          placeholder="Enter XTS Interactive Secret"
+                          value={apiSecret}
+                          onChange={(e) => setApiSecret(e.target.value)}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Market Data App Key (Quotes & Depth)</Label>
+                        <Input
+                          placeholder="Enter XTS Market Data App Key"
+                          value={apiKeyMarket}
+                          onChange={(e) => setApiKeyMarket(e.target.value)}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Market Data Secret Key</Label>
+                        <Input
+                          type="password"
+                          placeholder="Enter XTS Market Data Secret"
+                          value={apiSecretMarket}
+                          onChange={(e) => setApiSecretMarket(e.target.value)}
+                          className="font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Credentials are encrypted and saved. Click "Edit Credentials" above if you need to update them.
+                    </p>
+                  )}
+                </div>
+
+                <Button type="submit" className="w-full h-11 text-base font-semibold shadow-md" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Connecting...
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Saving & Connecting Broker...
                     </>
                   ) : (
                     <>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Connect Account
+                      <ShieldCheck className="mr-2 h-5 w-5" />
+                      Save & Connect Account
                     </>
                   )}
                 </Button>
               </form>
+
+              {/* Direct Multi-Account Navigation Links */}
+              <div className="mt-6 pt-4 border-t border-border/60 grid grid-cols-3 gap-2 text-center">
+                <Link
+                  to="/copytrading"
+                  className="flex flex-col items-center gap-1 p-2 rounded-md hover:bg-muted text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Users className="h-4 w-4 text-primary" />
+                  <span className="font-medium">Master Desk</span>
+                </Link>
+                <Link
+                  to="/profile"
+                  className="flex flex-col items-center gap-1 p-2 rounded-md hover:bg-muted text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Settings className="h-4 w-4 text-primary" />
+                  <span className="font-medium">Profile</span>
+                </Link>
+                <Link
+                  to="/portal"
+                  className="flex flex-col items-center gap-1 p-2 rounded-md hover:bg-muted text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4 text-primary" />
+                  <span className="font-medium">Retail Portal</span>
+                </Link>
+              </div>
             </CardContent>
           </Card>
 
           {/* Left side content - Shown second on mobile */}
           <div className="flex-1 max-w-xl text-center lg:text-left order-2 lg:order-1">
-            <h1 className="text-4xl lg:text-5xl font-bold mb-6">
-              Connect Your <span className="text-primary">Broker</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-4">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Institutional Turnkey Multi-Broker SaaS
+            </div>
+            <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight mb-4">
+              Connect Your <span className="text-primary">Master Desk</span>
             </h1>
-            <p className="text-lg lg:text-xl mb-8 text-muted-foreground">
-              Link your trading account to start executing trades through AlgoRivar's algorithmic
-              trading platform.
+            <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
+              Link your AC Agarwal Symphony XTS account to execute algorithmic orders, manage child trading sub-accounts, and broadcast signals in sub-millisecond execution.
             </p>
 
-            <Alert className="mb-6">
-              <BookOpen className="h-4 w-4" />
-              <AlertTitle>Need Help?</AlertTitle>
-              <AlertDescription>Check our documentation for broker setup guides.</AlertDescription>
-            </Alert>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+              <div className="p-3.5 rounded-lg border border-border/80 bg-card/40 text-left">
+                <div className="font-semibold text-sm mb-1 flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-primary" /> Multi-Account Mirroring
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Trade on 1 master account and fan out to 50+ child accounts in parallel.
+                </div>
+              </div>
+              <div className="p-3.5 rounded-lg border border-border/80 bg-card/40 text-left">
+                <div className="font-semibold text-sm mb-1 flex items-center gap-1.5">
+                  <Key className="h-4 w-4 text-primary" /> 256-bit Fernet Encryption
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Credentials are encrypted at rest with auto 08:30 AM pre-market token refresh.
+                </div>
+              </div>
+            </div>
 
-            <div className="flex justify-center lg:justify-start gap-4">
-              <Button variant="outline" asChild>
+            <div className="flex justify-center lg:justify-start gap-3">
+              <Button variant="outline" size="sm" asChild>
                 <a href="https://docs.openalgo.in" target="_blank" rel="noopener noreferrer">
                   <BookOpen className="mr-2 h-4 w-4" />
                   Documentation
                 </a>
+              </Button>
+              <Button variant="secondary" size="sm" asChild>
+                <Link to="/copytrading">
+                  <Users className="mr-2 h-4 w-4" />
+                  Open Master Desk
+                </Link>
               </Button>
             </div>
           </div>
