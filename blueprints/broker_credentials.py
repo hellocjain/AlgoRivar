@@ -372,7 +372,7 @@ def direct_connect():
     and activate master session immediately in 1 click.
     """
     from flask import session
-    from database.auth_db import store_auth_token, store_feed_token
+    from database.auth_db import upsert_auth
     from broker.acagarwal.api.auth_api import authenticate_broker
 
     try:
