@@ -207,12 +207,26 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
                 or str(m.get("symbol", "")).upper().endswith("FUT")
             ]
             if fut_matches:
-                # Pick near-month futures contract
-                fut_matches.sort(key=lambda x: str(x.get("symbol", "")))
-                # If August contract is available, pick it
-                near_match = next((m for m in fut_matches if "AUG2026" in str(m.get("symbol", "")).upper() or "SEP2026" in str(m.get("symbol", "")).upper()), fut_matches[0])
+                def parse_expiry_dt(m_obj):
+                    s = str(m_obj.get("symbol", "")).upper()
+                    m = re.search(r"(\d{2})([A-Z]{3})(\d{4})", s)
+                    if m:
+                        d, mon, y = m.groups()
+                        mon_idx = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"].index(mon) + 1 if mon in ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"] else 1
+                        try:
+                            return datetime(int(y), mon_idx, int(d))
+                        except Exception:
+                            pass
+                    return datetime.max
+
+                # Sort chronologically by real calendar expiry date
+                today_dt = datetime.now()
+                fut_matches.sort(key=parse_expiry_dt)
+                # Pick the nearest unexpired contract (e.g. 31AUG2026)
+                valid_futs = [m for m in fut_matches if parse_expiry_dt(m) >= today_dt - timedelta(days=1)]
+                near_match = valid_futs[0] if valid_futs else fut_matches[0]
                 sym_up = str(near_match.get("symbol", "")).upper()
-                logger.info(f"[Symbol Resolver] Resolved '{clean_sym}' -> Active Futures Contract '{sym_up}' from Token Cache")
+                logger.info(f"[Symbol Resolver] Resolved '{clean_sym}' -> Near-Month Contract '{sym_up}' from Token Cache")
                 return sym_up
         elif "SILVER" in clean_sym:
             # Fallback search for active MCX Silver contracts
