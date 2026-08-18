@@ -378,6 +378,7 @@ def direct_connect():
     try:
         data = request.get_json() or {}
         broker_name = data.get("broker_name", "acagarwal").strip().lower()
+        client_id = data.get("client_id", "").strip()
         broker_api_key = data.get("broker_api_key", "").strip()
         broker_api_secret = data.get("broker_api_secret", "").strip()
         broker_api_key_market = data.get("broker_api_key_market", "").strip()
@@ -387,6 +388,9 @@ def direct_connect():
             return jsonify({"status": "error", "message": "Interactive AppKey and SecretKey are required"}), 400
 
         # 1. Update os.environ immediately in memory
+        if client_id:
+            os.environ["CLIENT_ID"] = client_id
+            os.environ["USER_ID"] = client_id
         os.environ["BROKER_API_KEY"] = broker_api_key
         os.environ["BROKER_API_SECRET"] = broker_api_secret
         if broker_api_key_market:
@@ -400,6 +404,8 @@ def direct_connect():
         # 2. Persist to .env file
         content, _ = read_env_file()
         if content:
+            if client_id:
+                content = update_env_value(content, "CLIENT_ID", client_id)
             content = update_env_value(content, "BROKER_API_KEY", broker_api_key)
             content = update_env_value(content, "BROKER_API_SECRET", broker_api_secret)
             if broker_api_key_market:
@@ -422,6 +428,8 @@ def direct_connect():
                 "message": f"Broker authentication failed: {error_message or 'Invalid credentials from Symphony XTS'}"
             }), 400
 
+        effective_client_id = client_id or user_id or "MASTER"
+
         # 4. Activate User Session
         current_user = session.get("user", "admin")
         store_auth_token(current_user, auth_token)
@@ -430,13 +438,30 @@ def direct_connect():
         
         session["logged_in"] = True
         session["broker"] = broker_name
-        session["user_id"] = user_id or "MASTER"
+        session["user_id"] = effective_client_id
 
-        logger.info(f"Direct connection successful for broker {broker_name} (User: {current_user}, XTS User: {user_id})")
+        # 5. Automatically create/update Master Account in Copy Trading DB
+        try:
+            from database.copy_trading_db import create_or_update_child_account
+            create_or_update_child_account(
+                account_name=f"Master ({effective_client_id})",
+                client_code=effective_client_id,
+                broker=broker_name,
+                api_key=broker_api_key,
+                api_secret=broker_api_secret,
+                api_key_market=broker_api_key_market,
+                api_secret_market=broker_api_secret_market,
+                multiplier=1.0,
+                is_active=True,
+            )
+        except Exception as e:
+            logger.warning(f"Note: Could not register master in copy accounts table: {e}")
+
+        logger.info(f"Direct connection successful for broker {broker_name} (User: {current_user}, Client ID: {effective_client_id})")
 
         return jsonify({
             "status": "success",
-            "message": "Connected to AC Agarwal Symphony XTS successfully!",
+            "message": f"Connected to AC Agarwal Symphony XTS ({effective_client_id}) successfully!",
             "redirect": "/copytrading"
         })
 

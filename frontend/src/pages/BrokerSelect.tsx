@@ -64,7 +64,8 @@ export default function BrokerSelect() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Direct Frontend API Key entry state
+  // Direct Frontend API Key & Client ID entry state
+  const [clientId, setClientId] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
   const [apiKeyMarket, setApiKeyMarket] = useState('')
@@ -112,6 +113,7 @@ export default function BrokerSelect() {
 
         const payload = {
           broker_name: 'acagarwal',
+          client_id: clientId.trim(),
           broker_api_key: apiKey.trim(),
           broker_api_secret: apiSecret.trim(),
           broker_api_key_market: apiKeyMarket.trim(),
@@ -133,6 +135,7 @@ export default function BrokerSelect() {
       // Other brokers using standard callback flow
       if (apiKey || apiSecret) {
         await webClient.post('/api/broker/credentials', {
+          client_id: clientId.trim(),
           broker_api_key: apiKey.trim(),
           broker_api_secret: apiSecret.trim(),
           broker_api_key_market: apiKeyMarket.trim(),
@@ -220,6 +223,15 @@ export default function BrokerSelect() {
 
                   {showConfig ? (
                     <div className="space-y-3 pt-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-foreground">Broker Client ID / UCC Code</Label>
+                        <Input
+                          placeholder="e.g. DM933 or your Account ID"
+                          value={clientId}
+                          onChange={(e) => setClientId(e.target.value)}
+                          className="font-mono text-xs font-medium"
+                        />
+                      </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Interactive App Key (Trading)</Label>
                         <Input
