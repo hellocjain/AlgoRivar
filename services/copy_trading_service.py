@@ -209,9 +209,11 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
             if fut_matches:
                 def parse_expiry_dt(m_obj):
                     s = str(m_obj.get("symbol", "")).upper()
-                    m = re.search(r"(\d{2})([A-Z]{3})(\d{4})", s)
+                    m = re.search(r"(0[1-9]|[12]\d|3[01])(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)(\d{4}|\d{2})", s)
                     if m:
                         d, mon, y = m.groups()
+                        if len(y) == 2:
+                            y = "20" + y
                         mon_idx = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"].index(mon) + 1 if mon in ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"] else 1
                         try:
                             return datetime(int(y), mon_idx, int(d))
