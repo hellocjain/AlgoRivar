@@ -21,7 +21,7 @@ def transform_data(data, token):
         "orderQuantity": int(data["quantity"]),
         "limitPrice": str(data.get("price", "0")),
         "stopPrice": str(data.get("trigger_price", "0")),
-        "orderUniqueIdentifier": "openalgo",
+        "orderUniqueIdentifier": "algorivar",
     }
     logger.info(f"[AC Agarwal] Transformed order payload: {transformed}")
     return transformed
@@ -40,7 +40,7 @@ def transform_modify_order_data(data, token):
         "modifiedLimitPrice": str(data["price"]),
         "modifiedStopPrice": str(data.get("trigger_price", "0")),
         "modifiedTimeInForce": "DAY",
-        "orderUniqueIdentifier": "openalgo",
+        "orderUniqueIdentifier": "algorivar",
     }
 
 

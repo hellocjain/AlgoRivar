@@ -294,7 +294,7 @@ def close_all_positions(current_api_key, auth):
             "orderQuantity": str(quantity),
             "limitPrice": "0",
             "stopPrice": "0",
-            "orderUniqueIdentifier": "openalgo",
+            "orderUniqueIdentifier": "algorivar",
         }
         res, response, orderid = place_order_api(place_order_payload, auth)
 
