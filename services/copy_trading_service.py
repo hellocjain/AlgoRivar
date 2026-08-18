@@ -195,7 +195,6 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
         "ALUMINIUMMINI": "ALUMINI",
         "BSX": "SENSEX",
         "SENSEX50": "SENSEX50",
-        "SILVER100": "SILVERMIC",
         "CRUDE": "CRUDEOIL",
         "GOLD": "GOLD",
         "GOLDM": "GOLDM",
@@ -226,16 +225,14 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
                 if sym_up.endswith("FUT") or itype in ["FUTCOM", "FUTIDX", "FUTSTK", "FUT"] or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
                     logger.info(f"[Symbol Resolver] Resolved '{clean_sym}' -> '{sym_up}' from in-memory Token Cache")
                     return sym_up
-        elif "SILVER" in clean_sym:
-            # Fallback search for active MCX Silver contracts
-            alt_matches = search_symbols("SILVERMIC", exchange=search_ex, limit=10) or search_symbols("SILVER", exchange=search_ex, limit=10)
+        elif clean_sym == "CRUDE":
+            alt_matches = search_symbols("CRUDEOIL", exchange=search_ex, limit=10)
             for m in alt_matches:
                 sym_up = str(m.get("symbol", "")).upper()
                 if sym_up.endswith("FUT") or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
-                    logger.info(f"[Symbol Resolver] Resolved continuous '{clean_sym}' -> '{sym_up}' from Token Cache")
                     return sym_up
-        elif "CRUDE" in clean_sym:
-            alt_matches = search_symbols("CRUDEOIL", exchange=search_ex, limit=10)
+        elif clean_sym == "NATGAS":
+            alt_matches = search_symbols("NATURALGAS", exchange=search_ex, limit=10)
             for m in alt_matches:
                 sym_up = str(m.get("symbol", "")).upper()
                 if sym_up.endswith("FUT") or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
