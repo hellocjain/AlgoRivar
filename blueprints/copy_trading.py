@@ -529,10 +529,11 @@ def is_authenticated_webhook(data: dict) -> bool:
 
 
 @copy_trading_bp.route("/webhook", methods=["POST"])
+@copy_trading_bp.route("/signal", methods=["POST"])
 def copy_webhook():
     """
     Replicate external trading signal across all mapped child accounts.
-    Accepts standard OpenAlgo JSON payload + optional 'strategy' tag.
+    Accepts standard OpenAlgo JSON payload + optional 'strategy_tag' or 'strategy'.
     """
     data = request.get_json(force=True, silent=True)
     if not data:
@@ -545,10 +546,10 @@ def copy_webhook():
     # 2. Strict Input Validation
     symbol = (data.get("symbol") or "").strip().upper()
     action = (data.get("action") or "").strip().upper()
-    raw_qty = data.get("quantity")
+    raw_qty = data.get("quantity") or data.get("contracts") or 1
 
-    if not symbol or not action or raw_qty is None:
-        return jsonify({"status": "error", "message": "symbol, action, and quantity are required"}), 400
+    if not symbol or not action:
+        return jsonify({"status": "error", "message": "symbol and action are required"}), 400
 
     if action not in ["BUY", "SELL"]:
         return jsonify({"status": "error", "message": "action must be BUY or SELL"}), 400
@@ -556,9 +557,9 @@ def copy_webhook():
     try:
         quantity = int(raw_qty)
         if quantity <= 0:
-            return jsonify({"status": "error", "message": "quantity must be greater than zero"}), 400
+            quantity = 1
     except (ValueError, TypeError):
-        return jsonify({"status": "error", "message": "quantity must be a positive integer"}), 400
+        quantity = 1
 
     data["symbol"] = symbol
     data["action"] = action
@@ -570,14 +571,16 @@ def copy_webhook():
         pricetype = "MARKET"
     data["pricetype"] = pricetype
 
-    product = (data.get("product") or "MIS").strip().upper()
+    product = (data.get("product") or "NRML").strip().upper()
     if product not in ["MIS", "NRML", "CNC"]:
-        product = "MIS"
+        product = "NRML"
     data["product"] = product
 
-    # Sanitize strategy tag if provided
-    if data.get("strategy"):
-        data["strategy"] = str(data["strategy"]).strip().upper().replace(" ", "_")
+    # Sanitize strategy tag if provided (supports strategy_tag, strategy, tag)
+    tag = data.get("strategy_tag") or data.get("strategy") or data.get("tag")
+    if tag:
+        data["strategy"] = str(tag).strip().upper().replace(" ", "_")
+        data["strategy_tag"] = data["strategy"]
 
     # Broadcast signal in parallel with dynamic strategy routing
     result = broadcast_copy_order(data)

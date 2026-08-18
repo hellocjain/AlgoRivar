@@ -422,11 +422,11 @@ def calculate_child_quantity(
             lot_size = inferred
 
     # Check if a strategy-specific multiplier or fixed qty was attached
-    if "strategy_multiplier" in account:
-        multiplier = max(0.01, float(account["strategy_multiplier"]))
+    if "strategy_multiplier" in account or "strategy_fixed_qty" in account:
         fixed_qty = max(0, int(account.get("strategy_fixed_qty", 0)))
         if fixed_qty > 0:
-            return fixed_qty
+            return fixed_qty * lot_size
+        multiplier = max(0.01, float(account.get("strategy_multiplier", 1.0)))
         raw_qty = master_qty * multiplier
         target_qty = max(lot_size, int(round(raw_qty / lot_size) * lot_size))
         return max(1, target_qty)

@@ -444,7 +444,6 @@ if strategy.position_size != strategy.position_size[1]
   const [loadingSubscribers, setLoadingSubscribers] = useState<boolean>(false)
   const [savingSubscribers, setSavingSubscribers] = useState<boolean>(false)
   const [subscriberSearchTerm, setSubscriberSearchTerm] = useState<string>('')
-  const [bulkMultiplierInput, setBulkMultiplierInput] = useState<number>(1.0)
 
   // Telegram Alert Settings State
   const [telegramBotToken, setTelegramBotToken] = useState<string>(() => localStorage.getItem('oa_tg_token') || '')
@@ -476,12 +475,6 @@ if strategy.position_size != strategy.position_size[1]
     )
   }
 
-  const updateSubscriberMultiplier = (accountId: number, mult: number) => {
-    setSubscriberMatrix(prev =>
-      prev.map(item => item.account_id === accountId ? { ...item, multiplier: mult } : item)
-    )
-  }
-
   const updateSubscriberMaxLoss = (accountId: number, loss: number) => {
     setSubscriberMatrix(prev =>
       prev.map(item => item.account_id === accountId ? { ...item, max_daily_loss: loss } : item)
@@ -501,11 +494,44 @@ if strategy.position_size != strategy.position_size[1]
     )
   }
 
-  const handleApplyGlobalMultiplierToAll = () => {
+  const updateSubscriberFixedQty = (accountId: number, qty: number) => {
     setSubscriberMatrix(prev =>
-      prev.map(item => item.is_subscribed ? { ...item, multiplier: bulkMultiplierInput } : item)
+      prev.map(item => item.account_id === accountId ? { ...item, fixed_qty: qty } : item)
     )
-    showStatus('success', `Applied ${bulkMultiplierInput}x multiplier to all selected subscribers`)
+  }
+
+  const [bulkLotsInput, setBulkLotsInput] = useState<number>(1)
+  const handleApplyBulkLotsToAll = () => {
+    setSubscriberMatrix(prev =>
+      prev.map(item => item.is_subscribed ? { ...item, fixed_qty: bulkLotsInput } : item)
+    )
+    showStatus('success', `Applied ${bulkLotsInput} Lots to all selected subscribers`)
+  }
+
+  const handleQuickCreatePresetStrategy = async (preset: { tag: string; name: string; symbol: string; timeframe: string; segment: string }) => {
+    try {
+      const res = await fetch('/api/copy-trading/strategies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          strategy_tag: preset.tag,
+          strategy_name: preset.name,
+          segment: preset.segment,
+          timeframe: preset.timeframe,
+          default_symbol: preset.symbol,
+          description: `Supertrend Strategy for ${preset.symbol} on ${preset.timeframe}`,
+        }),
+      })
+      const data = await res.json()
+      if (data.status === 'success' || data.id) {
+        showStatus('success', `Strategy [${preset.tag}] created successfully!`)
+        fetchSummaryAndAccounts()
+      } else {
+        showStatus('error', data.message || 'Failed to create preset strategy')
+      }
+    } catch (e: any) {
+      showStatus('error', `Error creating strategy: ${e.message}`)
+    }
   }
 
   const handleSaveBulkSubscribers = async () => {
@@ -515,8 +541,8 @@ if strategy.position_size != strategy.position_size[1]
       const payload = {
         subscribers: subscriberMatrix.filter(s => s.is_subscribed).map(s => ({
           account_id: s.account_id,
-          multiplier: s.multiplier,
-          fixed_qty: s.fixed_qty || 0,
+          multiplier: s.multiplier || 1.0,
+          fixed_qty: s.fixed_qty !== undefined && s.fixed_qty !== null ? s.fixed_qty : 1,
           max_daily_loss: s.max_daily_loss || 5000.0,
           is_active: true,
         })),
@@ -530,14 +556,14 @@ if strategy.position_size != strategy.position_size[1]
       })
       const data = await res.json()
       if (data.status === 'success') {
-        showStatus('success', data.message || 'Subscribers updated successfully!')
+        showStatus('success', data.message || 'Client allocation saved successfully!')
         setIsSubscribersModalOpen(false)
         fetchSummaryAndAccounts()
       } else {
-        showStatus('error', data.message || 'Failed to save subscribers')
+        showStatus('error', data.message || 'Failed to save client allocation')
       }
     } catch (e: any) {
-      showStatus('error', `Error saving subscribers: ${e.message}`)
+      showStatus('error', `Error saving client allocation: ${e.message}`)
     } finally {
       setSavingSubscribers(false)
     }
@@ -1297,15 +1323,60 @@ if strategy.position_size != strategy.position_size[1]
 
         {/* Tab 2: Strategies & Routing Catalog */}
         <TabsContent value="strategies" className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Strategies & Routing Catalog</h2>
-              <p className="text-sm text-muted-foreground">Define trading strategies and generate TradingView webhook alerts</p>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Layers className="h-5 w-5 text-blue-500" />
+                Strategies & Multi-Client Routing Hub
+              </h2>
+              <p className="text-xs text-muted-foreground">Configure your commodity Supertrend strategies and assign Fixed Lots per client account</p>
             </div>
-            <Button size="sm" onClick={() => setIsAddStrategyOpen(true)} className="gap-1.5">
+            <Button size="sm" onClick={() => setIsAddStrategyOpen(true)} className="gap-1.5 font-semibold bg-blue-600 hover:bg-blue-700">
               <Plus className="h-4 w-4" />
-              Create Strategy
+              Add Custom Strategy
             </Button>
+          </div>
+
+          {/* Quick 1-Click Commodity Strategy Presets */}
+          <div className="p-3 rounded-lg border bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-purple-50/70 dark:from-blue-950/30 dark:via-indigo-950/20 dark:to-purple-950/30 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <span className="text-xs font-bold text-foreground">1-Click Presets:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs font-semibold bg-white/90 dark:bg-zinc-900 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50"
+                onClick={() => handleQuickCreatePresetStrategy({ tag: 'SILVERMIC_15M', name: 'SilverMIC 15m Supertrend', symbol: 'SILVERMIC', timeframe: '15m', segment: 'MCXFO' })}
+              >
+                ⚡ + SILVERMIC 15M
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs font-semibold bg-white/90 dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50"
+                onClick={() => handleQuickCreatePresetStrategy({ tag: 'NATGAS_5M', name: 'Natural Gas 5m Supertrend', symbol: 'NATURALGAS', timeframe: '5m', segment: 'MCXFO' })}
+              >
+                ⚡ + NATURALGAS 5M
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs font-semibold bg-white/90 dark:bg-zinc-900 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50"
+                onClick={() => handleQuickCreatePresetStrategy({ tag: 'CRUDE_15M', name: 'Crude Oil 15m Supertrend', symbol: 'CRUDEOIL', timeframe: '15m', segment: 'MCXFO' })}
+              >
+                ⚡ + CRUDEOIL 15M
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs font-semibold bg-white/90 dark:bg-zinc-900 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50"
+                onClick={() => handleQuickCreatePresetStrategy({ tag: 'GOLDM_15M', name: 'GoldM 15m Supertrend', symbol: 'GOLDM', timeframe: '15m', segment: 'MCXFO' })}
+              >
+                ⚡ + GOLDM 15M
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1345,16 +1416,18 @@ if strategy.position_size != strategy.position_size[1]
                       variant="outline"
                       className="cursor-pointer text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50/60 hover:bg-blue-100 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800"
                       title="Click to change timeframe"
-                      onClick={() => handleQuickUpdateTimeframe(strat.id, strat.timeframe || '10s')}
+                      onClick={() => handleQuickUpdateTimeframe(strat.id, strat.timeframe || '15m')}
                     >
-                      {strat.timeframe || '10s'} ✏️
+                      {strat.timeframe || '15m'} ✏️
                     </Badge>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pb-3 text-xs space-y-2">
                   <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Active Subscribers:</span>
-                    <span className="font-semibold text-foreground">{strat.subscribers_count} Accounts</span>
+                    <span>Assigned Clients:</span>
+                    <span className="font-bold text-foreground bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300">
+                      {strat.subscribers_count} Accounts Assigned
+                    </span>
                   </div>
                   <div className="flex items-center justify-between text-muted-foreground">
                     <span>Combined Strategy P&L:</span>
@@ -1367,11 +1440,11 @@ if strategy.position_size != strategy.position_size[1]
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs gap-1.5 font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+                    className="h-8 text-xs gap-1.5 font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 border-blue-300 dark:border-blue-800"
                     onClick={() => openSubscribersModal(strat)}
                   >
                     <Users className="h-3.5 w-3.5" />
-                    Manage Subscribers ({strat.subscribers_count})
+                    Assign Clients & Lots ({strat.subscribers_count})
                   </Button>
                   <Button
                     variant="secondary"
@@ -1380,7 +1453,7 @@ if strategy.position_size != strategy.position_size[1]
                     onClick={() => openJsonGenerator(strat)}
                   >
                     <Code2 className="h-3.5 w-3.5 text-blue-500" />
-                    View / Copy JSON
+                    TradingView Webhook & JSON
                   </Button>
                 </CardFooter>
               </Card>
@@ -2591,19 +2664,27 @@ if strategy.position_size != strategy.position_size[1]
               <div>
                 <DialogTitle className="text-lg font-bold flex items-center gap-2">
                   <Users className="h-5 w-5 text-blue-500" />
-                  Manage Subscribers for [{selectedStrategyForSubscribers?.strategy_tag}]
+                  Assign Clients & Lots for [{selectedStrategyForSubscribers?.strategy_tag}]
                 </DialogTitle>
                 <DialogDescription className="text-xs mt-1">
-                  Strategy: <strong>{selectedStrategyForSubscribers?.strategy_name}</strong> • Segment: <strong>{selectedStrategyForSubscribers?.segment}</strong> • Default Symbol: <strong>{selectedStrategyForSubscribers?.default_symbol}</strong>
+                  Strategy: <strong>{selectedStrategyForSubscribers?.strategy_name}</strong> • Segment: <strong>{selectedStrategyForSubscribers?.segment}</strong> • Symbol: <strong>{selectedStrategyForSubscribers?.default_symbol}</strong>
                 </DialogDescription>
               </div>
-              <Badge variant="outline" className="font-mono text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/40">
-                {subscriberMatrix.filter(s => s.is_subscribed).length} / {subscriberMatrix.length} Clients Subscribed
+              <Badge variant="outline" className="font-mono text-xs font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800">
+                {subscriberMatrix.filter(s => s.is_subscribed).length} / {subscriberMatrix.length} Clients Assigned
               </Badge>
             </div>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-xs">
+            {/* Informational SAR Sizing Banner */}
+            <div className="p-2.5 rounded-lg bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2">
+              <Sparkles className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400 mt-0.5" />
+              <div>
+                <strong>Stop-and-Reverse (SAR) Lot Execution:</strong> Set the exact <strong>Fixed Lots</strong> each client should trade (e.g. <code>1</code>, <code>2</code>, <code>4</code>). On Long/Short reversal, AlgoRivar automatically places 2x lots to square off the existing position and enter the new one cleanly without getting out of sync.
+              </div>
+            </div>
+
             {/* Quick Filter & Bulk Action Toolbar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-3 rounded-lg border bg-muted/20">
               <div className="flex items-center gap-2 flex-1">
@@ -2616,7 +2697,7 @@ if strategy.position_size != strategy.position_size[1]
                 />
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
                 <Button
                   size="sm"
                   variant="outline"
@@ -2634,22 +2715,23 @@ if strategy.position_size != strategy.position_size[1]
                   Deselect All
                 </Button>
                 <div className="flex items-center gap-1.5 border-l pl-2">
+                  <span className="text-[11px] text-muted-foreground font-semibold">Bulk Lots:</span>
                   <Input
                     type="number"
-                    step="0.1"
-                    min="0.1"
-                    max="10.0"
-                    value={bulkMultiplierInput}
-                    onChange={(e) => setBulkMultiplierInput(parseFloat(e.target.value) || 1.0)}
-                    className="h-8 w-16 text-xs font-mono text-center font-bold"
+                    step="1"
+                    min="1"
+                    max="100"
+                    value={bulkLotsInput}
+                    onChange={(e) => setBulkLotsInput(parseInt(e.target.value) || 1)}
+                    className="h-8 w-14 text-xs font-mono text-center font-bold"
                   />
                   <Button
                     size="sm"
                     variant="secondary"
                     className="h-8 text-xs font-semibold"
-                    onClick={handleApplyGlobalMultiplierToAll}
+                    onClick={handleApplyBulkLotsToAll}
                   >
-                    Set Mult
+                    Apply Lots
                   </Button>
                 </div>
               </div>
@@ -2658,18 +2740,18 @@ if strategy.position_size != strategy.position_size[1]
             {/* Subscribers Matrix Table */}
             {loadingSubscribers ? (
               <div className="h-48 flex items-center justify-center text-muted-foreground text-xs">
-                Loading client subscriber matrix...
+                Loading client accounts...
               </div>
             ) : (
               <div className="border rounded-lg overflow-hidden max-h-[50vh] overflow-y-auto">
                 <Table className="text-xs">
                   <TableHeader className="bg-muted/50 sticky top-0 z-10">
                     <TableRow>
-                      <TableHead className="w-12 text-center">Subscribe</TableHead>
-                      <TableHead>Client Account</TableHead>
-                      <TableHead>Connection & Margin</TableHead>
-                      <TableHead className="w-32">Multiplier</TableHead>
-                      <TableHead className="w-36">Max Daily Loss (₹)</TableHead>
+                      <TableHead className="w-14 text-center font-bold">Trade</TableHead>
+                      <TableHead className="font-bold">Client Account</TableHead>
+                      <TableHead className="font-bold">Connection & Margin</TableHead>
+                      <TableHead className="w-40 font-bold">Fixed Lots to Trade</TableHead>
+                      <TableHead className="w-36 font-bold">Max Daily Loss (₹)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2702,7 +2784,7 @@ if strategy.position_size != strategy.position_size[1]
                               <span>Status:</span>
                               <span className={`inline-flex items-center gap-1 font-medium ${sub.is_subscribed || sub.is_account_active ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                 <span className={`h-1.5 w-1.5 rounded-full ${sub.is_subscribed || sub.is_account_active ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                                {sub.is_subscribed || sub.is_account_active ? 'Active' : 'Disabled (Will Auto-Activate on Save)'}
+                                {sub.is_subscribed || sub.is_account_active ? 'Active' : 'Disabled'}
                               </span>
                             </div>
                           </TableCell>
@@ -2716,18 +2798,18 @@ if strategy.position_size != strategy.position_size[1]
                           </TableCell>
 
                           <TableCell onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1.5">
                               <Input
                                 type="number"
-                                step="0.1"
-                                min="0.1"
-                                max="10.0"
+                                step="1"
+                                min="1"
+                                max="500"
                                 disabled={!sub.is_subscribed}
-                                value={sub.multiplier}
-                                onChange={(e) => updateSubscriberMultiplier(sub.account_id, parseFloat(e.target.value) || 1.0)}
-                                className="h-7 text-xs font-mono font-bold"
+                                value={sub.fixed_qty !== undefined && sub.fixed_qty !== null && sub.fixed_qty > 0 ? sub.fixed_qty : 1}
+                                onChange={(e) => updateSubscriberFixedQty(sub.account_id, parseInt(e.target.value) || 1)}
+                                className="h-7 w-20 text-xs font-mono font-bold text-center bg-background"
                               />
-                              <span className="text-[11px] text-muted-foreground font-mono">x</span>
+                              <span className="text-[11px] font-semibold text-muted-foreground">Lot(s)</span>
                             </div>
                           </TableCell>
 
@@ -2756,12 +2838,18 @@ if strategy.position_size != strategy.position_size[1]
             </Button>
             <Button
               size="sm"
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 font-semibold"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4"
               disabled={savingSubscribers}
               onClick={handleSaveBulkSubscribers}
             >
-              <Check className="h-4 w-4" />
-              {savingSubscribers ? 'Saving Subscribers...' : `Save Subscribers (${subscriberMatrix.filter(s => s.is_subscribed).length} Clients)`}
+              {savingSubscribers ? (
+                <>Saving Allocation...</>
+              ) : (
+                <>
+                  <Check className="h-4 w-4" />
+                  Save Client Allocation
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
