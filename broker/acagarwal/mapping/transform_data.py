@@ -10,23 +10,32 @@ logger = get_logger(__name__)
 def transform_data(data, token):
     """
     Transforms standard OpenAlgo API request into AC Agarwal (Symphony XTS) payload.
+    Hardened with battle-tested Symphony XTS requirements.
     """
+    token_val = None
+    if token is not None:
+        try:
+            token_val = int(str(token).strip())
+        except ValueError:
+            token_val = str(token).strip()
+
     transformed = {
         "exchangeSegment": map_exchange(data["exchange"]),
-        "exchangeInstrumentID": token,
+        "exchangeInstrumentID": token_val,
         "productType": map_product_type(data["product"]),
         "orderType": map_order_type(data["pricetype"]),
         "orderSide": data["action"].upper(),
         "timeInForce": "DAY",
-        "disclosedQuantity": str(data.get("disclosed_quantity", "0")),
+        "disclosedQuantity": 0,
         "orderQuantity": int(data["quantity"]),
-        "limitPrice": str(data.get("price", "0")),
-        "stopPrice": str(data.get("trigger_price", "0")),
-        "orderUniqueIdentifier": "algorivar",
+        "limitPrice": float(data.get("price", 0.0)),
+        "stopPrice": float(data.get("trigger_price", 0.0)),
+        "apiOrderSource": "WEBAPI",
+        "orderUniqueIdentifier": data.get("order_ref", "algorivar"),
     }
     client_id = data.get("client_id") or data.get("clientID") or os.getenv("CLIENT_ID")
     if client_id and client_id != "MASTER":
-        transformed["clientID"] = str(client_id)
+        transformed["clientID"] = str(client_id).strip()
 
     logger.info(f"[AC Agarwal] Transformed order payload: {transformed}")
     return transformed
