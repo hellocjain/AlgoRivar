@@ -117,6 +117,33 @@ def debug_symbol():
     })
 
 
+@copy_trading_bp.route("/debug-broker-orders/<int:account_id>", methods=["GET"])
+@copy_trading_alias_bp.route("/debug-broker-orders/<int:account_id>", methods=["GET"])
+def debug_broker_orders(account_id: int):
+    from database.copy_trading_db import get_child_account
+    from services.copy_trading_service import get_or_refresh_child_token
+    from broker.acagarwal.baseurl import INTERACTIVE_URL
+    import requests
+
+    acc = get_child_account(account_id, include_secrets=True)
+    if not acc:
+        return jsonify({"error": "Account not found"}), 404
+    ok, token, err = get_or_refresh_child_token(acc)
+    if not ok or not token:
+        return jsonify({"error": f"Auth failed: {err}"}), 400
+
+    headers = {"Authorization": token, "Content-Type": "application/json"}
+    ord_resp = requests.get(f"{INTERACTIVE_URL}/orders", headers=headers, timeout=5)
+    pos_resp = requests.get(f"{INTERACTIVE_URL}/portfolio/positions?dayOrNet=NetWise", headers=headers, timeout=5)
+
+    return jsonify({
+        "account_name": acc.get("account_name"),
+        "client_code": acc.get("client_code"),
+        "raw_orders": ord_resp.json() if ord_resp.status_code == 200 else ord_resp.text,
+        "raw_positions": pos_resp.json() if pos_resp.status_code == 200 else pos_resp.text,
+    })
+
+
 # =====================================================================
 # Client Accounts CRUD & Inspection
 # =====================================================================
