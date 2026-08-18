@@ -23,6 +23,10 @@ def transform_data(data, token):
         "stopPrice": str(data.get("trigger_price", "0")),
         "orderUniqueIdentifier": "algorivar",
     }
+    client_id = data.get("client_id") or data.get("clientID") or os.getenv("CLIENT_ID")
+    if client_id and client_id != "MASTER":
+        transformed["clientID"] = str(client_id)
+
     logger.info(f"[AC Agarwal] Transformed order payload: {transformed}")
     return transformed
 

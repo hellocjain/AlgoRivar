@@ -430,11 +430,10 @@ def direct_connect():
 
         effective_client_id = client_id or user_id or "MASTER"
 
-        # 4. Activate User Session
+        # 4. Activate User Session and persist tokens & Client ID in auth_db
         current_user = session.get("user", "admin")
-        store_auth_token(current_user, auth_token)
-        if feed_token:
-            store_feed_token(current_user, feed_token)
+        from database.auth_db import upsert_auth
+        upsert_auth(current_user, auth_token, broker_name, feed_token=feed_token, user_id=effective_client_id)
         
         session["logged_in"] = True
         session["broker"] = broker_name
