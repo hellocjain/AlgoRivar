@@ -162,6 +162,8 @@ export default function RetailPortal() {
         }
         localStorage.setItem('algorivar_retail_account', JSON.stringify(accObj))
         setAccount(accObj)
+        setApiKey('')
+        setApiSecret('')
         setApiModalOpen(false)
         loadData()
       } else {
