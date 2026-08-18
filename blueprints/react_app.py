@@ -580,6 +580,23 @@ def react_flow_editor(workflow_id):
 
 
 # ============================================================
+# AlgoRivar Routes - Institutional Multi-Account & Client Portal
+# ============================================================
+
+
+# Copy Trading Master Desk
+@react_bp.route("/copytrading", strict_slashes=False)
+def react_copytrading():
+    return serve_react_app()
+
+
+# Retail Client Portal
+@react_bp.route("/portal", strict_slashes=False)
+def react_portal():
+    return serve_react_app()
+
+
+# ============================================================
 # Static Assets - Always served for React app
 # ============================================================
 
