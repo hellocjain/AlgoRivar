@@ -432,27 +432,50 @@ def direct_connect():
 
         # 4. Activate User Session and persist tokens & Client ID in auth_db
         current_user = session.get("user", "admin")
-        from database.auth_db import upsert_auth
-        upsert_auth(current_user, auth_token, broker_name, feed_token=feed_token, user_id=effective_client_id)
-        
+        from utils.auth_utils import handle_auth_success
+        from utils.session import set_session_login_time, get_session_expiry_time
+        from flask import current_app as app
+
+        handle_auth_success(auth_token, current_user, broker_name, feed_token=feed_token, user_id=effective_client_id)
+
         session["logged_in"] = True
+        session["user"] = current_user
+        session["user_session_key"] = current_user
         session["broker"] = broker_name
         session["user_id"] = effective_client_id
+        if feed_token:
+            session["FEED_TOKEN"] = feed_token
+        set_session_login_time()
+        session.permanent = True
+        app.config["PERMANENT_SESSION_LIFETIME"] = get_session_expiry_time()
 
         # 5. Automatically create/update Master Account in Copy Trading DB
         try:
-            from database.copy_trading_db import create_or_update_child_account
-            create_or_update_child_account(
-                account_name=f"Master ({effective_client_id})",
-                client_code=effective_client_id,
-                broker=broker_name,
-                api_key=broker_api_key,
-                api_secret=broker_api_secret,
-                api_key_market=broker_api_key_market,
-                api_secret_market=broker_api_secret_market,
-                multiplier=1.0,
-                is_active=True,
-            )
+            from database.copy_trading_db import get_all_child_accounts, add_child_account, update_child_account
+            existing = [acc for acc in get_all_child_accounts(include_secrets=True) if acc.get("client_code") == effective_client_id]
+            if existing:
+                update_child_account(
+                    account_id=existing[0]["id"],
+                    account_name=f"Master ({effective_client_id})",
+                    broker=broker_name,
+                    api_key=broker_api_key,
+                    api_secret=broker_api_secret,
+                    api_key_market=broker_api_key_market,
+                    api_secret_market=broker_api_secret_market,
+                    is_active=True,
+                )
+            else:
+                add_child_account(
+                    account_name=f"Master ({effective_client_id})",
+                    client_code=effective_client_id,
+                    broker=broker_name,
+                    api_key=broker_api_key,
+                    api_secret=broker_api_secret,
+                    api_key_market=broker_api_key_market,
+                    api_secret_market=broker_api_secret_market,
+                    multiplier=1.0,
+                    is_active=True,
+                )
         except Exception as e:
             logger.warning(f"Note: Could not register master in copy accounts table: {e}")
 
