@@ -1284,3 +1284,39 @@ def export_client_trade_logs_csv(account_id: int) -> str:
         return "ID,Error\n0,Failed to export orders"
     finally:
         session.close()
+
+
+def update_trade_quality(
+    quality_grade: str,
+    margin_percentage: float,
+    margin_source: Optional[str] = None,
+    is_active: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Update margin settings for a specific Trade Quality grade (A/B/C/D)."""
+    grade_clean = (quality_grade or "").upper().replace("GRADE_", "").strip()
+    session = Session()
+    try:
+        tq = session.query(TradeQuality).filter_by(quality_grade=grade_clean).first()
+        if not tq:
+            tq = TradeQuality(
+                quality_grade=grade_clean,
+                margin_percentage=max(1.0, min(100.0, float(margin_percentage))),
+                margin_source=margin_source or ("cash" if grade_clean == "D" else "available"),
+                is_active=is_active if is_active is not None else True,
+            )
+            session.add(tq)
+        else:
+            tq.margin_percentage = max(1.0, min(100.0, float(margin_percentage)))
+            if margin_source:
+                tq.margin_source = margin_source
+            if is_active is not None:
+                tq.is_active = is_active
+        session.commit()
+        return {"status": "success", "message": f"Trade quality {grade_clean} updated", "data": tq.to_dict()}
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Error updating trade quality {quality_grade}: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        session.close()
+

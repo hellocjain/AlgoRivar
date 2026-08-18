@@ -391,6 +391,30 @@ def bulk_update_strategy_subscribers(strategy_id: int):
     return jsonify(res)
 
 
+@copy_trading_bp.route("/trade-qualities", methods=["GET"])
+def get_trade_qualities():
+    """Retrieve margin percentages for all trade quality grades (A/B/C/D)."""
+    from database.copy_trading_db import get_all_trade_qualities
+    tqs = get_all_trade_qualities()
+    return jsonify({"status": "success", "trade_qualities": tqs})
+
+
+@copy_trading_bp.route("/trade-qualities/update", methods=["POST"])
+def update_trade_quality_endpoint():
+    """Update margin allocation for a specific Trade Quality grade."""
+    data = request.get_json(force=True, silent=True) or {}
+    grade = data.get("quality_grade")
+    pct = data.get("margin_percentage")
+    source = data.get("margin_source")
+    if not grade or pct is None:
+        return jsonify({"status": "error", "message": "quality_grade and margin_percentage are required"}), 400
+
+    from database.copy_trading_db import update_trade_quality
+    res = update_trade_quality(grade, float(pct), margin_source=source)
+    return jsonify(res)
+
+
+
 @copy_trading_bp.route("/telegram-test", methods=["POST"])
 def test_telegram_alert():
     """Send a test message to verify Telegram bot setup."""

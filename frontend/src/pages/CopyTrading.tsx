@@ -222,6 +222,8 @@ export default function CopyTrading() {
   const [isAddAccountOpen, setIsAddAccountOpen] = useState<boolean>(false)
   const [isAddStrategyOpen, setIsAddStrategyOpen] = useState<boolean>(false)
   const [isFireDrillOpen, setIsFireDrillOpen] = useState<boolean>(false)
+  const [isTradeQualitiesOpen, setIsTradeQualitiesOpen] = useState<boolean>(false)
+  const [tradeQualities, setTradeQualities] = useState<any[]>([])
   const [fireDrillRunning, setFireDrillRunning] = useState<boolean>(false)
   const [fireDrillReport, setFireDrillReport] = useState<any>(null)
 
@@ -593,11 +595,12 @@ if strategy.position_size != strategy.position_size[1]
 
   const fetchSummaryAndAccounts = async () => {
     try {
-      const [accRes, stratRes, readRes, feedRes] = await Promise.all([
+      const [accRes, stratRes, readRes, feedRes, tqRes] = await Promise.all([
         fetch('/api/copy-trading/accounts'),
         fetch('/api/copy-trading/strategies'),
         fetch('/api/copy-trading/readiness'),
         fetch('/api/copy-trading/feed'),
+        fetch('/api/copy-trading/trade-qualities'),
       ])
 
       const accData = await accRes.json()
@@ -619,6 +622,13 @@ if strategy.position_size != strategy.position_size[1]
       const feedData = await feedRes.json()
       if (feedData.status === 'success') {
         setFeed(feedData.feed || [])
+      }
+
+      if (tqRes) {
+        const tqData = await tqRes.json()
+        if (tqData.status === 'success') {
+          setTradeQualities(tqData.trade_qualities || [])
+        }
       }
     } catch (e) {
       console.error('Error fetching copy trading telemetry:', e)
@@ -1000,6 +1010,11 @@ if strategy.position_size != strategy.position_size[1]
           <Button variant="outline" size="sm" onClick={handleSyncBalances} disabled={syncing} className="gap-1.5">
             <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
             Sync Balances
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={() => setIsTradeQualitiesOpen(true)} className="gap-1.5">
+            <Sliders className="h-4 w-4" />
+            Risk Sizing (A/B/C/D)
           </Button>
 
           <Button size="sm" onClick={() => setIsAddAccountOpen(true)} className="gap-1.5">
@@ -2738,6 +2753,85 @@ if strategy.position_size != strategy.position_size[1]
             >
               <Check className="h-4 w-4" />
               {savingSubscribers ? 'Saving Subscribers...' : `Save Subscribers (${subscriberMatrix.filter(s => s.is_subscribed).length} Clients)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Trade Qualities (Grade A/B/C/D) Dynamic Risk Modal */}
+      <Dialog open={isTradeQualitiesOpen} onOpenChange={setIsTradeQualitiesOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sliders className="h-5 w-5 text-blue-400" />
+              Algomirror Dynamic Margin & Risk Sizing Rules
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Configure available capital margin percentages for each signal Grade (A/B/C/D).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {['A', 'B', 'C', 'D'].map((grade) => {
+                const tq = tradeQualities.find((t) => t.quality_grade === grade) || {
+                  quality_grade: grade,
+                  margin_percentage: grade === 'A' ? 70 : grade === 'B' ? 50 : grade === 'C' ? 30 : 20,
+                  margin_source: grade === 'D' ? 'cash' : 'available',
+                }
+                return (
+                  <Card key={grade} className="p-3 border bg-card/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge className={`text-xs font-bold ${grade === 'A' ? 'bg-emerald-600' : grade === 'B' ? 'bg-blue-600' : grade === 'C' ? 'bg-amber-600' : 'bg-purple-600'} text-white`}>
+                        Grade {grade}
+                      </Badge>
+                      <span className="text-[11px] text-muted-foreground uppercase font-mono">
+                        Source: {tq.margin_source}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Margin Allocation (%)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={tq.margin_percentage}
+                        onChange={async (e) => {
+                          const val = parseFloat(e.target.value) || 10
+                          const updated = tradeQualities.map((t) =>
+                            t.quality_grade === grade ? { ...t, margin_percentage: val } : t
+                          )
+                          setTradeQualities(updated)
+                          try {
+                            await fetch('/api/copy-trading/trade-qualities/update', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ quality_grade: grade, margin_percentage: val }),
+                            })
+                          } catch (err) {
+                            console.error('Failed to update trade quality:', err)
+                          }
+                        }}
+                        className="font-mono text-xs h-8"
+                      />
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-950/20 border border-blue-800/40 text-[11px] text-muted-foreground space-y-1">
+              <p className="font-semibold text-blue-300">💡 How Sizing Works:</p>
+              <p>• <b>Grade A (70% Available)</b>: High-conviction setups allocating 70% available margin.</p>
+              <p>• <b>Grade B (50% Available)</b>: Standard daily quantitative strategies.</p>
+              <p>• <b>Grade C (30% Available)</b>: Conservative / scalping intraday signals.</p>
+              <p>• <b>Grade D (20% Cash)</b>: Option buying allocation strictly capped to 20% liquid cash.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setIsTradeQualitiesOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
