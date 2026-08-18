@@ -88,10 +88,18 @@ def get_or_refresh_child_token(account: Dict[str, Any], force_refresh: bool = Fa
     Get active Symphony XTS session token for a child account, refreshing autonomously if needed.
     Returns (success, token, error_message).
     """
-    account_id = account["id"]
-    client_code = account["client_code"]
+    account_id = account.get("id")
+    client_code = account.get("client_code", "")
     api_key = account.get("api_key")
     api_secret = account.get("api_secret")
+
+    if not api_key or not api_secret:
+        if account_id:
+            full_acc = get_child_account(account_id, include_secrets=True)
+            if full_acc:
+                api_key = full_acc.get("api_key")
+                api_secret = full_acc.get("api_secret")
+                client_code = full_acc.get("client_code", client_code)
 
     if not api_key or not api_secret:
         return False, None, "Missing API Key or Secret"
@@ -288,7 +296,7 @@ def send_telegram_trade_alert(summary_data: Dict[str, Any]):
             action_emoji = "📈" if action == "BUY" else ("📉" if action == "SELL" else "🔄")
 
             msg = (
-                f"{action_emoji} <b>OpenAlgo Copy-Trade Executed</b>\n"
+                f"{action_emoji} <b>AlgoRivar Copy-Trade Executed</b>\n"
                 f"━━━━━━━━━━━━━━━━━━━━━\n"
                 f"📊 <b>Strategy:</b> <code>{strategy}</code>\n"
                 f"🎯 <b>Symbol:</b> <code>{symbol}</code> ({exchange})\n"

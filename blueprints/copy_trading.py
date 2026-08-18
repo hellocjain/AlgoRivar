@@ -430,7 +430,7 @@ def test_telegram_alert():
 
     try:
         msg = (
-            "🤖 <b>OpenAlgo Copy-Trading Telegram Test</b>\n"
+            "🤖 <b>AlgoRivar Copy-Trading Telegram Test</b>\n"
             "━━━━━━━━━━━━━━━━━━━━━\n"
             "✅ <b>Status:</b> Connected & Ready\n"
             "⚡ <b>Engine:</b> Institutional Multi-Account Router\n"
