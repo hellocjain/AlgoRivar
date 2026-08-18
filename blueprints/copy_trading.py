@@ -91,6 +91,32 @@ def get_feed():
     return jsonify({"status": "success", "feed": feed})
 
 
+@copy_trading_bp.route("/debug-symbol", methods=["GET"])
+@copy_trading_alias_bp.route("/debug-symbol", methods=["GET"])
+def debug_symbol():
+    q = request.args.get("q", "SILVER")
+    ex = request.args.get("exchange", "MCXFO")
+    from database.token_db import get_token, search_symbols, get_symbol_info
+    from services.copy_trading_service import resolve_active_contract_symbol
+    
+    resolved = resolve_active_contract_symbol(q, ex)
+    token = get_token(resolved, ex) or get_token(q, ex)
+    info = get_symbol_info(resolved, ex)
+    search_res = search_symbols(q, exchange="MCX", limit=20)
+    
+    return jsonify({
+        "query": q,
+        "exchange": ex,
+        "resolved_symbol": resolved,
+        "token": token,
+        "symbol_info": {
+            "lotsize": getattr(info, "lotsize", None),
+            "tick_size": getattr(info, "tick_size", None),
+        } if info else None,
+        "search_results": search_res[:10],
+    })
+
+
 # =====================================================================
 # Client Accounts CRUD & Inspection
 # =====================================================================

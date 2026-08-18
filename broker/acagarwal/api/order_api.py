@@ -174,8 +174,22 @@ def place_order_api(data, auth):
             except Exception as quote_err:
                 logger.warning(f"[AC Agarwal] Failed to compute synthetic limit price: {quote_err}")
 
-        norm_ex = "MCX" if "MCX" in str(exchange).upper() else ("NFO" if "NFO" in str(exchange).upper() or "NSEFO" in str(exchange).upper() else exchange)
-        token = (get_token(symbol, exchange) or get_token(symbol, norm_ex)) if symbol and exchange else None
+        token = get_token(symbol, exchange) if symbol and exchange else None
+        if not token and symbol:
+            # Fallback search in token cache
+            from database.token_db import search_symbols
+            ex_short = "MCX" if "MCX" in str(exchange) else ("NSE" if "NSE" in str(exchange) else "BSE")
+            matches = search_symbols(symbol, exchange=ex_short, limit=5)
+            if matches:
+                token = matches[0].get("token")
+
+        if not token:
+            err = f"Instrument token not found for symbol '{symbol}' on exchange '{exchange}'"
+            logger.error(f"[AC Agarwal Safeguard] {err}")
+            fake_resp = httpx.Response(400, json={"type": "error", "description": err})
+            fake_resp.status = 400
+            return fake_resp, {"error": err, "description": err}, None
+
         newdata = transform_data(data, token)
 
         client = get_httpx_client()
