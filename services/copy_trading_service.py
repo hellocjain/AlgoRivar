@@ -162,32 +162,6 @@ def normalize_exchange_segment(exchange: str, symbol: str) -> str:
     return ex or "MCXFO" if any(sym.startswith(k) for k in ["CRUDE", "GOLD", "SILVER", "NATURAL", "COPPER", "ZINC"]) else (ex or "NSEFO")
 
 
-COMMON_ALIASES = {
-    "SILVER100": "SILVERMIC",
-    "SILVER1001!": "SILVERMIC",
-    "SILVER1002!": "SILVERMIC",
-    "SILVER1!": "SILVER",
-    "SILVER2!": "SILVER",
-    "SILVERMIC1!": "SILVERMIC",
-    "SILVERMIC2!": "SILVERMIC",
-    "CRUDE": "CRUDEOIL",
-    "CRUDE1!": "CRUDEOIL",
-    "CRUDEOIL1!": "CRUDEOIL",
-    "CRUDEOILMINI": "CRUDEOILM",
-    "CRUDEOILM1!": "CRUDEOILM",
-    "NATGAS": "NATURALGAS",
-    "NATGAS1!": "NATURALGAS",
-    "NATURALGAS1!": "NATURALGAS",
-    "GOLDM1!": "GOLDM",
-    "GOLDGUINEA1!": "GOLDGUINEA",
-    "GOLD1!": "GOLD",
-    "NIFTY50": "NIFTY",
-    "NIFTYBANK": "BANKNIFTY",
-    "BSX": "SENSEX",
-    "SENSEX50": "SENSEX50",
-}
-
-
 def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
     """
     Intelligently resolves continuous or base ticker symbols from TradingView to 
@@ -206,18 +180,11 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
     if ":" in clean_sym:
         clean_sym = clean_sym.split(":")[-1].strip()
 
-    # Check Battle-Tested Aliases
-    if clean_sym in COMMON_ALIASES:
-        clean_sym = COMMON_ALIASES[clean_sym]
-
-    # Strip TradingView continuous contract indicators
+    # Strip TradingView continuous contract indicators (e.g. SILVER1001! -> SILVER100, SILVERMIC1! -> SILVERMIC)
     if clean_sym.endswith("1!") or clean_sym.endswith("2!"):
         clean_sym = clean_sym[:-2]
     elif clean_sym.endswith("!"):
         clean_sym = clean_sym[:-1]
-
-    if clean_sym in COMMON_ALIASES:
-        clean_sym = COMMON_ALIASES[clean_sym]
 
     ex = normalize_exchange_segment(exchange, clean_sym)
 
@@ -233,14 +200,20 @@ def resolve_active_contract_symbol(symbol: str, exchange: str) -> str:
         search_ex = "MCX" if "MCX" in ex else ("NSE" if "NSE" in ex else "BSE")
         cached_matches = search_symbols(clean_sym, exchange=search_ex, limit=50)
         if cached_matches:
-            for m in cached_matches:
-                sym_up = str(m.get("symbol", "")).upper()
-                itype = str(m.get("instrumenttype", "")).upper()
-                if sym_up.endswith("CE") or sym_up.endswith("PE") or "OPT" in itype:
-                    continue
-                if sym_up.endswith("FUT") or itype in ["FUTCOM", "FUTIDX", "FUTSTK", "FUT"] or not (sym_up.endswith("CE") or sym_up.endswith("PE")):
-                    logger.info(f"[Symbol Resolver] Resolved '{clean_sym}' -> '{sym_up}' from in-memory Token Cache")
-                    return sym_up
+            # 1st Priority: Active FUTCOM / Futures contracts
+            fut_matches = [
+                m for m in cached_matches
+                if str(m.get("instrumenttype", "")).upper() in ["FUTCOM", "FUTIDX", "FUTSTK", "FUT"]
+                or str(m.get("symbol", "")).upper().endswith("FUT")
+            ]
+            if fut_matches:
+                # Pick near-month futures contract
+                fut_matches.sort(key=lambda x: str(x.get("symbol", "")))
+                # If August contract is available, pick it
+                near_match = next((m for m in fut_matches if "AUG2026" in str(m.get("symbol", "")).upper() or "SEP2026" in str(m.get("symbol", "")).upper()), fut_matches[0])
+                sym_up = str(near_match.get("symbol", "")).upper()
+                logger.info(f"[Symbol Resolver] Resolved '{clean_sym}' -> Active Futures Contract '{sym_up}' from Token Cache")
+                return sym_up
         elif "SILVER" in clean_sym:
             # Fallback search for active MCX Silver contracts
             alt_matches = search_symbols("SILVERMIC", exchange=search_ex, limit=10) or search_symbols("SILVER", exchange=search_ex, limit=10)
