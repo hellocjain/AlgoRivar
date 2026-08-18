@@ -82,14 +82,8 @@ export default function BrokerSelect() {
           setSelectedBroker(data.broker_name || 'acagarwal')
         }
 
-        // Fetch current masked credentials to check if configured
-        const credsRes = await webClient.get('/api/broker/credentials')
-        const credsData = credsRes.data
-        if (credsData.status === 'success' && credsData.data) {
-          if (credsData.data.broker_api_key_raw_length > 0) {
-            setShowConfig(false)
-          }
-        }
+        // Set showConfig to true by default so user can directly input credentials
+        setShowConfig(true)
       } catch {
         // Fallback to default
         setSelectedBroker('acagarwal')
